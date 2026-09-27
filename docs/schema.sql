@@ -115,6 +115,8 @@ CREATE TABLE evaluation (
 	time_met BOOLEAN, 
 	cost_met BOOLEAN, 
 	attempt_no INTEGER NOT NULL, 
+	origin VARCHAR(10) NOT NULL, 
+	origin_ref VARCHAR(300), 
 	final_score FLOAT, 
 	band_label VARCHAR(40), 
 	rag VARCHAR(5), 
@@ -129,6 +131,7 @@ CREATE TABLE evaluation (
 	PRIMARY KEY (id), 
 	CONSTRAINT ck_eval_status CHECK (status in ('draft','completed','void')), 
 	CONSTRAINT ck_eval_type CHECK (evaluator_type in ('self','human','llm')), 
+	CONSTRAINT ck_eval_origin CHECK (origin in ('app','import')), 
 	FOREIGN KEY(version_id) REFERENCES scorecard_version (id)
 );
 

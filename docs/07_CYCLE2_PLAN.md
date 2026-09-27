@@ -1,5 +1,10 @@
 # Cycle 2 — Test & Migration (plan)
 
+> **Status: executed.** Results in [`09_CYCLE2_REPORT.md`](09_CYCLE2_REPORT.md); rules in
+> [`cycle2/MIGRATION_RULES.md`](cycle2/MIGRATION_RULES.md). All exit criteria met except contract fuzzing from
+> OpenAPI (covered instead by the hand-built corruption catalogue), and the planned 10k random trees (run: ~3k per CI
+> run across 8 properties).
+
 Goal: evidence of behaviour under flawed and migrated data (DDD framework §8).
 
 ## 8.1 Test design
@@ -8,7 +13,7 @@ Goal: evidence of behaviour under flawed and migrated data (DDD framework §8).
 - UI smoke suite (Playwright): create scorecard → publish → evaluate → complete → analytics.
 
 ## 8.2 Buggy / invalid scenario datasets
-`data/tools/corrupt.py` (to build): takes valid seed definitions and evaluations and injects one defect per record,
+`data/tools/corrupt.py`: takes valid seed definitions and evaluations and injects one defect per record,
 tagged `{scenario_id, defect_type}` so every rejection is traceable:
 missing references, inverted ranges, overlapping thresholds, duplicate codes, wrong scale codes, unicode/huge
 text, metric values of the wrong type, ratings for parameters of other versions, circular parent references

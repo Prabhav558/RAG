@@ -8,6 +8,7 @@ import NewEvaluation from "./pages/NewEvaluation";
 import EvaluationPage from "./pages/EvaluationPage";
 import Evaluations from "./pages/Evaluations";
 import Analytics from "./pages/Analytics";
+import ImportPage from "./pages/Import";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <NavLink to="/evaluate">New evaluation</NavLink>
         <NavLink to="/evaluations">Evaluations</NavLink>
         <NavLink to="/analytics">Analytics</NavLink>
+        <NavLink to="/import">Import legacy</NavLink>
       </nav>
       <main className="main">
         <Routes>
@@ -30,6 +32,7 @@ function App() {
           <Route path="/evaluations" element={<Evaluations />} />
           <Route path="/evaluations/:evaluationId" element={<EvaluationPage />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/import" element={<ImportPage />} />
           <Route path="*" element={<div className="empty">Page not found</div>} />
         </Routes>
       </main>

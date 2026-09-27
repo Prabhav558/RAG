@@ -1,0 +1,15 @@
+Scorecard: Vendor Assessment
+Scale: %
+Target: 75
+Applies to: Vendor
+
+Criteria,Weight,Critical
+Commercials,30,
+  Pricing competitiveness,60,
+  Payment terms,40,
+Delivery,40,
+  On-time delivery,70,Y
+  Quality of goods,30,Y
+Compliance,30,
+  ISO certification,50,
+  Data protection,50,yes

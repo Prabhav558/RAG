@@ -31,3 +31,16 @@ Measures required by DDD framework §13, recorded per iteration.
    pilot is *assessment report* quality, swap the JSON. No code changes needed.
 4. Should a judge be allowed to rate a metric-backed leaf at all when metrics are present, or should the UI hide
    judgement until the metric is missing?
+
+## Iteration 2 — Cycle 2 (Test & Migration)
+
+| Measure | Value |
+|---|---|
+| Defects found by flawed data before fixes | 19 of 76 corruption cases (9 crashes), + 7 migration defects during execution |
+| Defects found by property-based / fuzz testing | 1 in migration (1-char file name → crash); 0 in the scoring engine (1 test bug) |
+| Schema changes triggered | 1 (`evaluation.origin`, `origin_ref`); contract changes: finite numbers, size limits, weight bound, band format |
+| Missed business situations discovered by migration | Legacy totals computed with unnormalised weights; conflicting duplicate ratings; repeat ratings of one subject; scales we do not support (1–7); sources with no guidelines at all |
+| Tests | 98 automated + 6-step UI smoke |
+| Human corrections to AI-generated artefacts | To be recorded at team review |
+
+Details and decisions: [`09_CYCLE2_REPORT.md`](09_CYCLE2_REPORT.md).

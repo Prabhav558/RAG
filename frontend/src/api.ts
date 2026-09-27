@@ -199,6 +199,8 @@ export interface EvaluationView {
   time_met: boolean | null;
   cost_met: boolean | null;
   attempt_no: number;
+  origin: "app" | "import";
+  origin_ref: string | null;
   final_score: number | null;
   band_label: string | null;
   rag: string | null;
@@ -233,6 +235,7 @@ export interface EvaluationRow {
   quality_met: boolean | null;
   qtc_green: boolean | null;
   is_private: boolean;
+  origin: "app" | "import";
   created_at: string;
   completed_at: string | null;
 }
@@ -244,6 +247,36 @@ export interface RatingIn {
   evidence: string | null;
   confidence: number | null;
   override_reason: string | null;
+}
+
+export interface MigrationRow {
+  sheet: string;
+  row: number;
+  kind: "meta" | "kpi" | "rating";
+  label: string;
+  status: "imported" | "warning" | "rejected";
+  messages: string[];
+}
+export interface MigrationReport {
+  source: string;
+  status: "ok" | "ok_with_warnings" | "failed";
+  committed: boolean;
+  fatal: string[];
+  notes: string[];
+  legacy_scale: [number, number] | null;
+  scale: string | null;
+  definition: ScorecardDefinition | null;
+  validation_issues: Issue[];
+  scorecard_id: number | null;
+  version_id: number | null;
+  counts: Record<string, number>;
+  rows: MigrationRow[];
+  evaluations: {
+    row: number; subject: string; evaluator: string | null; date: string | null; attempt_no: number;
+    status: string; import_as: "completed" | "draft"; legacy_total: number | null; recomputed: number | null;
+    diff: number | null; explanation: string | null; evaluation_id: number | null;
+  }[];
+  reconciliation: { rows_with_legacy_total: number; matched: number; mismatched: number; mismatched_unexplained: number; max_abs_diff: number };
 }
 
 export class ApiError extends Error {
@@ -337,6 +370,13 @@ export const api = {
   llmJudge: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/llm-judge`),
   complete: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/complete`),
   void: (id: number, reason: string) => request<EvaluationView>("POST", `/api/evaluations/${id}/void`, { reason }),
+
+  migrate: (mode: "preview" | "commit", files: File[], opts: Record<string, string | boolean>) => {
+    const f = new FormData();
+    files.forEach((x) => f.append("files", x));
+    Object.entries(opts).forEach(([k, v]) => v !== "" && f.append(k, String(v)));
+    return request<MigrationReport>("POST", `/api/migrations/${mode}`, f, true);
+  },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   overview: (scorecard_id?: number) => request<any>("GET", `/api/analytics/overview${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),

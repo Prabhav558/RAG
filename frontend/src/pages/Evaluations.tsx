@@ -64,7 +64,8 @@ export default function Evaluations() {
                 <tr key={r.id} className="clickable" onClick={() => nav(`/evaluations/${r.id}`)}>
                   <td>{r.subject_name}{r.subject_ref && <div className="small muted">{r.subject_ref}</div>}</td>
                   <td>{r.scorecard_name} <span className="muted small">v{r.version_no}</span></td>
-                  <td>{r.evaluator_type}{r.evaluator_name && <div className="small muted">{r.evaluator_name}</div>}</td>
+                  <td>{r.evaluator_type}{r.origin === "import" && <span className="tag" style={{ marginLeft: 4 }}>IMPORTED</span>}
+                    {r.evaluator_name && <div className="small muted">{r.evaluator_name}</div>}</td>
                   <td><StatusChip status={r.status} /></td>
                   <td className="num"><b>{fmt(r.final_score)}</b></td>
                   <td className="num">{fmt(r.target_score)}</td>

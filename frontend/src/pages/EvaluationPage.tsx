@@ -75,6 +75,7 @@ export default function EvaluationPage() {
             {ev.is_private && <span className="chip neutral">Private</span>}
             {ev.subject_ref && <span className="chip neutral">{ev.subject_ref}</span>}
             {ev.attempt_no > 1 && <span className="chip neutral">Attempt {ev.attempt_no}</span>}
+            {ev.origin === "import" && <span className="chip neutral" title={ev.origin_ref ?? ""}>Imported</span>}
             {ev.judge_model && <span className="small muted">judge: {ev.judge_model}</span>}
           </div>
         </div>

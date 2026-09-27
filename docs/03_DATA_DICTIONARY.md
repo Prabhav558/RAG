@@ -2,7 +2,23 @@
 
 The contract used to generate, ingest and validate data. Types are logical; physical DDL is in `schema.sql`.
 PK = primary key, FK = foreign key, U = unique, N = nullable. Validation codes refer to `backend/app/validation.py`
-(V/W) and `backend/app/services.py` (E).
+(V/W) and `backend/app/services.py` (E); migration codes (M) to `docs/cycle2/MIGRATION_RULES.md`.
+
+## Contract-wide rules (Cycle 2)
+- Numbers must be finite: NaN / ±Infinity are rejected (HTTP 422) everywhere.
+- Size limits: names ≤ 200 chars; purpose, scope, objective, guidance, guidelines, rationale, evidence, notes
+  ≤ 20,000; evaluation input ≤ 400,000; weight ≤ 1,000,000; ≤ 500 parameters per version (V020); depth hard cap 10.
+- A request may not rate the same parameter, or value the same metric, twice (E016).
+- Integrity violations that slip past validation return 409 E017, never 500.
+
+| Code | Meaning |
+|---|---|
+| V001–V019, W101–W105 | Definition validation (see `04_SCENARIO_CATALOGUE.md`) |
+| V020 | Too many parameters (> 500) |
+| E001–E015 | Evaluation / lifecycle / upload errors |
+| E016 | Duplicate parameter or metric in one request |
+| E017 | Database integrity violation (safety net) |
+| M001–M008, M101–M110, M201–M306, M900–M902 | Migration (`cycle2/MIGRATION_RULES.md`) |
 
 ## rating_scale
 | Field | Type | N | Key | Rules |
@@ -115,6 +131,8 @@ criteria on parents → W104, ignored).
 | target_score | float | | Copied from version; overridable per context; within scale |
 | time_met, cost_met | bool | Y | QTC inputs |
 | attempt_no | int | | ≥ 1; resubmissions after a failed gate |
+| origin | enum | | `app` \| `import` (Cycle 2). Imported evaluations come from legacy migration |
+| origin_ref | varchar(300) | Y | Source trace, e.g. `training.xlsx!Feedback log:17` |
 | final_score, band_label, rag, quality_met, qtc_green, gate_failures | computed | Y | Written only by the scoring engine on every change |
 | summary, notes, voided_reason | text | Y | |
 

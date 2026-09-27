@@ -8,6 +8,8 @@ A generic **Scorecard Creation & Rating System**: Google Forms / SurveyMonkey fo
 - **Use** it: provide text, a document or metric data, and rate it manually, as a private self-appraisal, or with
   an LLM judge. The deterministic engine rolls up weighted and minimum scores, applies bands (never rounding up),
   the target and critical gates, and QTC. It shows the reasoning behind every score.
+- **Import** legacy spreadsheet scorecards and their historical ratings (xlsx/csv) with a dry-run preview,
+  row-by-row outcomes and reconciliation of legacy totals.
 - **Learn**: analytics on honest RAG distribution, weakest parameters, first-time pass rate and LLM-vs-human
   agreement.
 
@@ -24,7 +26,8 @@ Built with the **Data-Driven Development Framework v1.1**. Start with [`docs/00_
 | [04 Scenario catalogue](docs/04_SCENARIO_CATALOGUE.md) | Cycle 1 §7.3 |
 | [05 Scoring engine spec](docs/05_SCORING_ENGINE_SPEC.md) | Rating mechanism |
 | [06 Analytics & BI](docs/06_ANALYTICS_BI.md) | Cycle 1 §7.5 |
-| [07 Cycle 2 plan](docs/07_CYCLE2_PLAN.md) · [08 Cycle 3 plan](docs/08_CYCLE3_PLAN.md) | Next cycles |
+| [07 Cycle 2 plan](docs/07_CYCLE2_PLAN.md) · [09 Cycle 2 report](docs/09_CYCLE2_REPORT.md) · [migration rules](docs/cycle2/MIGRATION_RULES.md) | Cycle 2 §8 |
+| [08 Cycle 3 plan](docs/08_CYCLE3_PLAN.md) | Next cycle |
 | [Pilot log](docs/PILOT_LOG.md) | Pilot measures & learning |
 
 ## Run it
@@ -47,11 +50,21 @@ The LLM judge uses the Anthropic API (`ANTHROPIC_API_KEY`; model via `SCORECARD_
 `claude-opus-5`). Without credentials everything else works, and the judge endpoint returns a clear 503.
 The database defaults to `backend/scorecard.db`; override with `SCORECARD_DB_URL`.
 
+## Migrate legacy spreadsheets
+
+```bash
+python data/tools/migrate.py data/legacy/training-session-quality.xlsx           # preview + report
+python data/tools/migrate.py --all --commit                                       # all sample sources
+```
+Or use **Import legacy** in the UI. Reports land in `docs/cycle2/migration/`.
+
 ## Test
 
 ```bash
-cd backend && python -m pytest -q          # 68 scenario-traced tests
+cd backend && python -m pytest -q          # 98 tests: scenarios, properties, corruption catalogue, migration
+python data/tools/corrupt.py               # corruption report -> docs/cycle2/corruption_report.md
 cd frontend && npm run typecheck
+BASE_URL=http://localhost:8000 npm run smoke   # UI smoke (needs a running app; CHROME=/path/to/chrome if needed)
 ```
 
 ## Layout
@@ -61,7 +74,10 @@ backend/app/validation.py   coded scorecard validation (V/W codes)
 backend/app/services.py     definition <-> DB, evaluation lifecycle (E codes)
 backend/app/judge.py        LLM judge (structured output; proposes leaf scores only)
 backend/app/analytics.py    BI queries
+backend/app/migration.py    legacy spreadsheet migration (preview / commit / reconcile)
 data/scorecards/*.json      scorecard definitions (import/export format)
-data/tools/                 ingest + scenario-based generator
-frontend/src/pages/         Library, Builder, New evaluation, Evaluation, Evaluations, Analytics
+data/tools/                 ingest, generator, corrupt (flawed data), make_legacy, migrate
+data/legacy/                sample legacy spreadsheets with injected problems
+frontend/src/pages/         Library, Builder, New evaluation, Evaluation, Evaluations, Analytics, Import
+frontend/e2e/smoke.mjs      UI smoke suite
 ```

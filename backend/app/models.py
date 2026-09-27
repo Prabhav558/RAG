@@ -231,6 +231,7 @@ class Evaluation(Base):
     __table_args__ = (
         CheckConstraint("status in ('draft','completed','void')", name="ck_eval_status"),
         CheckConstraint("evaluator_type in ('self','human','llm')", name="ck_eval_type"),
+        CheckConstraint("origin in ('app','import')", name="ck_eval_origin"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -247,6 +248,8 @@ class Evaluation(Base):
     time_met: Mapped[bool | None] = mapped_column(Boolean)
     cost_met: Mapped[bool | None] = mapped_column(Boolean)
     attempt_no: Mapped[int] = mapped_column(Integer, default=1)  # resubmissions of the same subject
+    origin: Mapped[str] = mapped_column(String(10), default="app")  # app | import
+    origin_ref: Mapped[str | None] = mapped_column(String(300))  # e.g. "legacy.xlsx!Ratings:12"
     # computed on every save
     final_score: Mapped[float | None] = mapped_column(Float)
     band_label: Mapped[str | None] = mapped_column(String(40))

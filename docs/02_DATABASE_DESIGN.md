@@ -54,3 +54,8 @@ erDiagram
 |---|---|
 | Duplicate parameter codes rejected at save (V015) instead of DB IntegrityError | Scenario I10 surfaced a 500 error |
 | Analytics normalise scores to % of scale | Generated data mixed 0–10, 1–5, 0–100 averages (see PILOT_LOG) |
+| `evaluation.origin`, `evaluation.origin_ref` + CHECK | Cycle 2 migration needs traceability to the source row |
+| Structural errors blocked at draft save (inverted ranges, duplicate metric codes) | Cycle 2 corruption: DB constraints were stricter than save validation (500s) |
+| IntegrityError → 409 E017 | Safety net so a missed rule can never surface as a 500 |
+
+**Open:** no migration tool for this database yet (Alembic needed before any shared deployment).

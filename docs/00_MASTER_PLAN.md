@@ -88,7 +88,7 @@ one. Ranges allow both; the validator guarantees the whole scale is covered exac
 | 1.5 | Analytics / BI | `/api/analytics/*` endpoints + dashboard page; spec in `06_ANALYTICS_BI.md` | In this iteration |
 | 1.6 | First working application | FastAPI backend + React frontend: Library, Builder, Evaluate, Result, Analytics | In this iteration |
 
-### Cycle 2 — Test & Migration (next iteration) → `07_CYCLE2_PLAN.md`
+### Cycle 2 — Test & Migration ✅ → `07_CYCLE2_PLAN.md`, results `09_CYCLE2_REPORT.md`
 Buggy/invalid datasets with injected-defect traceability, legacy spreadsheet scorecard migration (CSV → versioned
 scorecard), 1–5 → 0–10 scale mapping, reconciliation report, defect log.
 

@@ -781,6 +781,8 @@ def evaluation_view(ev: Evaluation) -> dict:
         "time_met": ev.time_met,
         "cost_met": ev.cost_met,
         "attempt_no": ev.attempt_no,
+        "origin": ev.origin,
+        "origin_ref": ev.origin_ref,
         "final_score": ev.final_score,
         "band_label": ev.band_label,
         "rag": ev.rag,
@@ -821,6 +823,7 @@ def evaluation_row(ev: Evaluation) -> dict:
         "quality_met": ev.quality_met,
         "qtc_green": ev.qtc_green,
         "is_private": ev.is_private,
+        "origin": ev.origin,
         "created_at": ev.created_at,
         "completed_at": ev.completed_at,
     }
