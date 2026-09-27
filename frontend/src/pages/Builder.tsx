@@ -221,19 +221,29 @@ export default function Builder() {
           {readOnly ? (
             <>
               {view.status === "published" && <Link className="btn primary" to={`/evaluate?version=${vid}`}>Evaluate with this</Link>}
-              {!card?.versions.some((v) => v.status === "draft") ? (
+              {view.status === "published" && (
+                <button onClick={async () => {
+                  const r = window.prompt("Why retire this version? New evaluations will no longer be possible.");
+                  if (r) { try { await api.retire(vid, r); await load(); } catch (e) { setError(e); } }
+                }}>Retire</button>
+              )}
+              {!card?.versions.some((v) => v.status === "draft" || v.status === "in_review") ? (
                 <button onClick={newVersion}>Create new version</button>
               ) : (
-                <Link className="btn" to={`/versions/${card.versions.find((v) => v.status === "draft")!.id}`}>Open draft</Link>
+                <Link className="btn" to={`/versions/${card.versions.find((v) => v.status === "draft" || v.status === "in_review")!.id}`}>Open draft</Link>
               )}
             </>
           ) : (
             <>
               <button className="danger" onClick={discardDraft}>Delete draft</button>
               <button onClick={save} disabled={busy || !dirty}>{dirty ? "Save draft" : "Saved"}</button>
-              <button className="primary" onClick={publish} disabled={busy || errors.length > 0} title={errors.length ? "Fix validation errors first" : ""}>
-                Publish
-              </button>
+              {card?.requires_review ? (
+                <button className="primary" onClick={() => setTab("review")}>Review & approval →</button>
+              ) : (
+                <button className="primary" onClick={publish} disabled={busy || errors.length > 0} title={errors.length ? "Fix validation errors first" : ""}>
+                  Publish
+                </button>
+              )}
             </>
           )}
         </div>
@@ -308,6 +318,25 @@ export default function Builder() {
               <label className="check" style={{ marginBottom: 10 }}>
                 <input type="checkbox" checked={def.version.qtc_enabled} onChange={(e) => setVersion({ qtc_enabled: e.target.checked })} />
                 Apply the QTC rule (green = Quality AND Time AND Cost met)
+              </label>
+              <h3 style={{ marginTop: 12 }}>Quality gate (submissions)</h3>
+              <div className="form-grid">
+                <Field label="Independent judges required">
+                  <select value={def.version.required_judges} onChange={(e) => setVersion({ required_judges: Number(e.target.value) })}>
+                    {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                <Field label="Judge disagreement tolerance (% of scale)" hint="Wider spread → adjudication">
+                  <input type="number" min={0} max={100} value={def.version.judge_tolerance_pct} onChange={(e) => setVersion({ judge_tolerance_pct: Number(e.target.value) })} />
+                </Field>
+              </div>
+              <label className="check" style={{ display: "flex", marginBottom: 6 }}>
+                <input type="checkbox" checked={def.version.require_self_appraisal} onChange={(e) => setVersion({ require_self_appraisal: e.target.checked })} />
+                Owner must self-appraise before submitting
+              </label>
+              <label className="check" style={{ display: "flex", marginBottom: 6 }}>
+                <input type="checkbox" checked={def.version.is_foundational} onChange={(e) => setVersion({ is_foundational: e.target.checked })} />
+                Foundational: a dark-red result stops the whole project
               </label>
               {view.version_no > 1 && (
                 <Field label="Change note for this version">
@@ -415,9 +444,14 @@ export default function Builder() {
               <dt>QTC rule</dt><dd>{def.version.qtc_enabled ? "Applied" : "Not applied"}</dd>
             </dl>
           </div>
-          <div className="card">
-            <h2>Weight distribution (rated parameters)</h2>
-            <WeightTable params={def.version.parameters} shares={shares} />
+          <div>
+            <ReviewPanel vid={vid} view={view} requiresReview={!!card?.requires_review} dirty={dirty} errors={errors.length}
+              onChanged={async () => { await load(); }} onError={setError}
+              onToggleReview={async (on) => { if (card) setCard(await api.updateScorecardMeta(card.id, { requires_review: on })); }} />
+            <div className="card" style={{ marginTop: 14 }}>
+              <h2>Weight distribution (rated parameters)</h2>
+              <WeightTable params={def.version.parameters} shares={shares} />
+            </div>
           </div>
         </div>
       )}
@@ -674,6 +708,63 @@ function MetricsEditor({ metrics, scale, readOnly, onChange }: {
         <button className="sm" onClick={() => onChange([...metrics, { code: `m${metrics.length + 1}`, name: "New metric", data_type: "percent", unit: "%", thresholds: [] }])}>
           + Metric
         </button>
+      )}
+    </div>
+  );
+}
+
+
+function ReviewPanel({ vid, view, requiresReview, dirty, errors, onChanged, onError, onToggleReview }: {
+  vid: number; view: VersionView; requiresReview: boolean; dirty: boolean; errors: number;
+  onChanged: () => Promise<void>; onError: (e: unknown) => void; onToggleReview: (on: boolean) => Promise<void>;
+}) {
+  const [history, setHistory] = useState<{ action: string; actor: string; comment: string | null; at: string }[]>([]);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.reviews(vid).then(setHistory).catch(() => undefined); }, [vid, view.status]);
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    try {
+      await fn();
+      setComment("");
+      await onChanged();
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="card">
+      <h2>Review & approval</h2>
+      <label className="check" style={{ display: "flex", marginBottom: 10 }}>
+        <input type="checkbox" checked={requiresReview} onChange={(e) => onToggleReview(e.target.checked)} />
+        Changes to this scorecard need approval by a second person
+      </label>
+      {requiresReview && view.status === "draft" && (
+        <>
+          <Field label="Note for the reviewer"><input value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
+          <button className="primary" disabled={busy || dirty || errors > 0} title={dirty ? "Save first" : errors ? "Fix validation errors first" : ""}
+            onClick={() => run(() => api.submitForReview(vid, comment || undefined))}>Submit for review</button>
+        </>
+      )}
+      {view.status === "in_review" && (
+        <>
+          <p className="hint">Frozen while in review. The reviewer must be someone other than the person who submitted it.</p>
+          <Field label="Comment (required to request changes)"><input value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
+          <div className="row">
+            <button className="primary" disabled={busy} onClick={() => run(() => api.approve(vid, comment || undefined))}>Approve & publish</button>
+            <button disabled={busy || !comment.trim()} onClick={() => run(() => api.requestChanges(vid, comment))}>Request changes</button>
+          </div>
+        </>
+      )}
+      {history.length > 0 && (
+        <ul className="timeline" style={{ marginTop: 12 }}>
+          {history.map((h, i) => (
+            <li key={i}><b>{h.action.replace("_", " ")}</b> by {h.actor}<div className="hint">{new Date(h.at).toLocaleString()}</div>
+              {h.comment && <div className="small">“{h.comment}”</div>}</li>
+          ))}
+        </ul>
       )}
     </div>
   );

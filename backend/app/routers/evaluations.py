@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Header, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import analytics
 from .. import services as svc
+from .. import workflow as wf
 from ..db import get_session
 from ..judge import Judge, JudgeError, get_judge
 from ..models import Evaluation, ScorecardVersion
@@ -19,6 +20,16 @@ def _evaluation(db: Session, evaluation_id: int) -> Evaluation:
     if not ev:
         raise svc.DomainError("E404", f"Evaluation {evaluation_id} not found", 404)
     return ev
+
+
+def _check_editor(ev: Evaluation, actor: str | None):
+    """Inside a submission, a self-appraisal belongs to the owner and a human judgement to its judge."""
+    if ev.submission is None:
+        return
+    if ev.evaluator_type == "self" and not wf.same_person(actor, ev.submission.owner):
+        raise svc.DomainError("S011", f"This self-appraisal is private to {ev.submission.owner}", 403)
+    if ev.evaluator_type == "human" and not wf.same_person(actor, ev.evaluator_name):
+        raise svc.DomainError("S003", f"Only {ev.evaluator_name} can change their own judgement", 403)
 
 
 @router.get("/evaluations")
@@ -45,21 +56,29 @@ def create_evaluation(body: EvaluationCreate, db: Session = Depends(get_session)
 
 
 @router.get("/evaluations/{evaluation_id}")
-def get_evaluation(evaluation_id: int, db: Session = Depends(get_session)):
-    return svc.evaluation_view(_evaluation(db, evaluation_id))
+def get_evaluation(evaluation_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+    ev = _evaluation(db, evaluation_id)
+    if ev.submission is not None and ev.evaluator_type == "self" and not wf.same_person(x_actor, ev.submission.owner):
+        raise svc.DomainError("S011", f"This self-appraisal is private to {ev.submission.owner}", 403)
+    return svc.evaluation_view(ev)
 
 
 @router.put("/evaluations/{evaluation_id}")
-def update_evaluation(evaluation_id: int, body: EvaluationUpdate, db: Session = Depends(get_session)):
-    return svc.evaluation_view(svc.apply_update(db, _evaluation(db, evaluation_id), body))
+def update_evaluation(evaluation_id: int, body: EvaluationUpdate, x_actor: str | None = Header(default=None),
+                      db: Session = Depends(get_session)):
+    ev = _evaluation(db, evaluation_id)
+    _check_editor(ev, x_actor)
+    return svc.evaluation_view(svc.apply_update(db, ev, body))
 
 
 @router.post("/evaluations/{evaluation_id}/documents", status_code=201)
-async def upload_document(evaluation_id: int, file: UploadFile = File(...), db: Session = Depends(get_session)):
+async def upload_document(evaluation_id: int, file: UploadFile = File(...), x_actor: str | None = Header(default=None),
+                          db: Session = Depends(get_session)):
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise svc.DomainError("E015", "File is larger than 20 MB")
     ev = _evaluation(db, evaluation_id)
+    _check_editor(ev, x_actor)
     svc.add_document(db, ev, file.filename or "upload", file.content_type, data)
     return svc.evaluation_view(ev)
 
@@ -103,8 +122,10 @@ def run_llm_judge(evaluation_id: int, db: Session = Depends(get_session), judge:
 
 
 @router.post("/evaluations/{evaluation_id}/complete")
-def complete(evaluation_id: int, db: Session = Depends(get_session)):
-    return svc.evaluation_view(svc.complete_evaluation(db, _evaluation(db, evaluation_id)))
+def complete(evaluation_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+    ev = _evaluation(db, evaluation_id)
+    _check_editor(ev, x_actor)
+    return svc.evaluation_view(svc.complete_evaluation(db, ev))
 
 
 @router.post("/evaluations/{evaluation_id}/void")

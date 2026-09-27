@@ -80,8 +80,9 @@ export default function Analytics() {
   const [params, setParams] = useState<any>(null);
   const [versionId, setVersionId] = useState<number | undefined>();
   const [error, setError] = useState<unknown>(null);
+  const [behaviour, setBehaviour] = useState<any>(null);
 
-  useEffect(() => { api.scorecards().then(setCards); }, []);
+  useEffect(() => { api.scorecards().then(setCards); api.behaviour().then(setBehaviour).catch(() => undefined); }, []);
   useEffect(() => {
     Promise.all([api.overview(scorecardId), api.agreement(scorecardId), api.trend(scorecardId)])
       .then(([o, a, t]) => { setOverview(o); setAgreement(a); setTrend(t); })
@@ -211,8 +212,69 @@ export default function Analytics() {
               )}
             </div>
           </div>
+          {behaviour && behaviour.gates.decided > 0 && <Behaviour b={behaviour} />}
         </>
       )}
+    </>
+  );
+}
+
+function Behaviour({ b }: { b: any }) {
+  const g = b.gates;
+  return (
+    <>
+      <h2 style={{ marginTop: 22 }}>Quality gate behaviour</h2>
+      <div className="grid tiles">
+        <Tile value={String(g.decided)} label="Gate decisions" />
+        <Tile value={pct(g.first_attempt_pass_rate)} label="Passed at first attempt" />
+        <Tile value={`${g.passed} / ${g.redo}`} label="Passed / redo" />
+        <Tile value={String(g.adjudicated)} label="Adjudicated disputes" hint="Judges disagreed beyond tolerance" />
+        <Tile value={String(g.blocked_projects)} label="Foundational stops" />
+      </div>
+      <div className="grid two" style={{ marginTop: 14 }}>
+        <div className="card">
+          <h3>QTC misses, tracked separately</h3>
+          {g.qtc.n === 0 ? <p className="muted">No QTC scorecards decided yet.</p> : (
+            <table>
+              <tbody>
+                <tr><td>Quality missed</td><td className="num">{g.qtc.quality_missed}</td></tr>
+                <tr><td>Time missed</td><td className="num">{g.qtc.time_missed}</td></tr>
+                <tr><td>Cost missed</td><td className="num">{g.qtc.cost_missed}</td></tr>
+                <tr><td><b>Green (Q × T × C)</b></td><td className="num"><b>{g.qtc.green} / {g.qtc.n}</b></td></tr>
+              </tbody>
+            </table>
+          )}
+          <h3 style={{ marginTop: 16 }}>Guideline disputes: where judges differ most</h3>
+          {b.disputed_parameters.length === 0 ? <p className="muted">Needs submissions with 2+ judges.</p> : (
+            <table>
+              <thead><tr><th>Parameter</th><th className="num">Mean spread</th><th className="num">Max</th><th className="num">n</th></tr></thead>
+              <tbody>{b.disputed_parameters.map((d: any) => (
+                <tr key={d.parameter_id}><td><span className="mono muted">{d.code}</span> {d.name}</td><td className="num">{d.mean_spread}</td><td className="num">{d.max_spread}</td><td className="num">{d.n}</td></tr>
+              ))}</tbody>
+            </table>
+          )}
+          <p className="hint" style={{ marginTop: 6 }}>High spread means the guideline allows interpretation: rewrite it until it doesn't.</p>
+        </div>
+        <div className="card">
+          <h3>Self-appraisal honesty</h3>
+          {b.self_appraisal.pairs === 0 ? <p className="muted">No decided submissions with a self-appraisal yet.</p> : (
+            <>
+              <p className="small">Self score minus the judges' official score, across {b.self_appraisal.pairs} submissions:
+                <b> {b.self_appraisal.mean_gap_pct > 0 ? "+" : ""}{b.self_appraisal.mean_gap_pct}%</b> of scale ·
+                same pass/fail verdict {pct(b.self_appraisal.verdict_match_rate)}</p>
+              <table>
+                <thead><tr><th>Person</th><th className="num">n</th><th className="num">Mean gap</th><th className="num">Verdict match</th></tr></thead>
+                <tbody>{b.self_appraisal.people.map((p: any) => (
+                  <tr key={p.person}><td>{p.person}</td><td className="num">{p.n}</td>
+                    <td className="num" style={{ color: Math.abs(p.mean_gap_pct) >= 15 ? "var(--danger)" : undefined }}>{p.mean_gap_pct > 0 ? "+" : ""}{p.mean_gap_pct}%</td>
+                    <td className="num">{pct(p.verdict_match_rate)}</td></tr>
+                ))}</tbody>
+              </table>
+              <p className="hint" style={{ marginTop: 6 }}>A leading indicator (framework §11): people who cannot score their own work honestly struggle to apply any scorecard.</p>
+            </>
+          )}
+        </div>
+      </div>
     </>
   );
 }

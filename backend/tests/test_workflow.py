@@ -397,3 +397,27 @@ def test_services_compose_within_one_session(db):
     svc.apply_update(db, ev, EvaluationUpdate(ratings=[RatingIn(parameter_id=i, judged_score=9) for i in leaves]))
     svc.complete_evaluation(db, ev)
     assert flow.decide(db, sub, "Lead").decision == "passed"
+
+
+def test_self_appraisal_is_private_to_the_owner(f):
+    v = f.scorecard()
+    s = f.subject("T")
+    sub = f.start(s["id"], v["id"]).json()
+    ev = f.self_appraise(sub["id"], 8).json()
+    as_owner = f.c.get(f"/api/submissions/{sub['id']}", headers=H("Alice")).json()["evaluations"][0]
+    as_judge = f.c.get(f"/api/submissions/{sub['id']}", headers=H("Bob")).json()["evaluations"][0]
+    assert as_owner["final_score"] == 8 and not as_owner["redacted"]
+    assert as_judge["final_score"] is None and as_judge["redacted"]
+    assert f.c.get(f"/api/evaluations/{ev['id']}", headers=H("Bob")).json()["code"] == "S011"
+    assert f.c.get(f"/api/evaluations/{ev['id']}", headers=H("alice")).status_code == 200
+    assert f.rate(ev, 3, actor="Bob").json()["code"] == "S011"  # nobody else can edit it
+
+
+def test_only_the_named_judge_edits_a_judgement(f):
+    v = f.scorecard()
+    s = f.subject("T")
+    sub = f.start(s["id"], v["id"]).json()
+    f.act(sub["id"], "submit")
+    ev = f.evaluation(sub["id"], "human", "Bob", actor="Bob").json()
+    assert f.rate(ev, 9, actor="Carol").json()["code"] == "S003"
+    assert f.rate(ev, 9, actor="bob").status_code == 200

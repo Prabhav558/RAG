@@ -74,6 +74,55 @@ await step("import a messy legacy workbook", async () => {
   await snap("import");
 });
 
+async function actAs(name) {
+  const box = page.locator(".acting-as input");
+  await box.fill(name);
+}
+
+await step("quality gate end to end: create work, self-appraise, submit, judge, decide", async () => {
+  await page.goto(BASE + "/work");
+  await actAs("Alice");
+  await page.click("text=+ New subject");
+  await page.fill("label:has-text('Name') >> input", `Smoke project ${unique}`);
+  await page.selectOption("label:has-text('Type') >> select", "project");
+  await page.click("button:has-text('Create')");
+  await page.getByText(`Smoke project ${unique}`).first().waitFor();
+  await page.click("text=+ New subject");
+  await page.fill("label:has-text('Name') >> input", `Smoke task ${unique}`);
+  await page.selectOption("label:has-text('Under') >> select", { label: `Smoke project ${unique}` });
+  await page.click("button:has-text('Create')");
+  await page.click(`a:has-text('Smoke task ${unique}')`);
+  await page.selectOption("label:has-text('Published scorecard') >> select", { label: "Client Email Quality (v1)" });
+  await page.click("button:has-text('Start')");
+  await page.waitForSelector("text=What happens next");
+  await page.click("button:has-text('Self-appraise')");
+  await page.waitForSelector("text=Complete evaluation");
+  for (const btn of await page.locator(".leaf .score-btn", { hasText: /^8$/ }).all()) { await btn.click(); await page.waitForTimeout(150); }
+  await page.click("text=Complete evaluation");
+  await page.waitForSelector("text=✓ Meets target");
+  await page.click("text=← Back to the submission");
+  await page.click("button:has-text('Submit for judging')");
+  await page.waitForSelector(".stepper .s.now:has-text('In review')");
+  await actAs("Bob");
+  await page.click("button:has-text('Judge as Bob')");
+  await page.waitForSelector("text=Complete evaluation");
+  for (const btn of await page.locator(".leaf .score-btn", { hasText: /^9$/ }).all()) { await btn.click(); await page.waitForTimeout(150); }
+  await page.click("text=Complete evaluation");
+  await page.waitForSelector("text=✓ Meets target");
+  await page.click("text=← Back to the submission");
+  await page.click("button:has-text('Decide')");
+  await page.waitForSelector("text=✓ Passed the gate");
+  await snap("submission-decided");
+  await page.goto(BASE + "/work");
+  const row = page.locator("tr", { hasText: `Smoke project ${unique}` });
+  await row.locator(".chip.pass", { hasText: "Green" }).waitFor();
+});
+
+await step("attention list renders", async () => {
+  await page.goto(BASE + "/attention");
+  await page.waitForSelector("text=Needs attention");
+});
+
 await step("analytics renders", async () => {
   await page.goto(BASE + "/analytics");
   await page.waitForSelector("text=Honest RAG distribution");

@@ -498,7 +498,18 @@ def adjudicate(db: Session, sub: Submission, actor: str, data: AdjudicationIn) -
     return sub
 
 
-def submission_view(db: Session, sub: Submission) -> dict:
+PRIVATE_FIELDS = ("final_score", "band_label", "rag", "quality_met", "qtc_green")
+
+
+def _row_for(e: Evaluation, viewer: str | None, owner: str) -> dict:
+    row = {**svc.evaluation_row(e), "is_judge": e.evaluator_type != "self", "redacted": False}
+    if e.evaluator_type == "self" and not wf.same_person(viewer, owner):
+        # framework §11: self-appraisal is private; hiding it also stops judges anchoring on the owner's number
+        row.update({f: None for f in PRIVATE_FIELDS}, redacted=True)
+    return row
+
+
+def submission_view(db: Session, sub: Submission, viewer: str | None = None) -> dict:
     events = db.scalars(select(AuditEvent).where(AuditEvent.entity == wf.SUBMISSION, AuditEvent.entity_id == sub.id)
                         .order_by(AuditEvent.id))
     subj = sub.subject
@@ -521,7 +532,7 @@ def submission_view(db: Session, sub: Submission) -> dict:
         "time_met": sub.time_met, "cost_met": sub.cost_met, "qtc_green": sub.qtc_green,
         "adjudicated": sub.adjudicated, "decided_by": sub.decided_by, "decision_reason": sub.decision_reason,
         "blocks_project": sub.blocks_project,
-        "evaluations": [{**svc.evaluation_row(e), "is_judge": e.evaluator_type != "self"} for e in sub.evaluations],
+        "evaluations": [_row_for(e, viewer, sub.owner) for e in sub.evaluations],
         "events": [{"action": e.action, "from": e.from_state, "to": e.to_state, "actor": e.actor, "at": e.at,
                     "details": e.details} for e in events],
     }

@@ -66,7 +66,8 @@ export default function EvaluationPage() {
       <div className="page-head">
         <div>
           <div className="row small muted">
-            <Link to="/evaluations">Evaluations</Link> / {ev.version.scorecard_name} v{ev.version.version_no}
+            {ev.submission_id ? <Link to={`/submissions/${ev.submission_id}`}>← Back to the submission</Link> : <Link to="/evaluations">Evaluations</Link>}
+            {" "}/ {ev.version.scorecard_name} v{ev.version.version_no}
           </div>
           <h1>{ev.subject_name}</h1>
           <div className="row">

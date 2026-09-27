@@ -87,7 +87,7 @@ def run_attempt(db, subject, version, owner, arch, rng, shift=0.0, stop_at=None)
     judge_submission(db, sub, arch, rng, shift, lenient_judge=rng.random() < 0.3)
     flow.decide(db, sub, "PMO bot")
     if sub.status == "adjudication":
-        verdict = "passed" if (sub.official_score or 0) >= version.target_score else "redo"
+        verdict = "passed" if (sub.official_score or 0) >= version.target_score and not sub.gate_failures else "redo"
         flow.adjudicate(db, sub, ADJUDICATOR, flow.AdjudicationIn(
             verdict=verdict, reason="Judges read the guideline differently; settled against the quantitative anchor"))
     return sub

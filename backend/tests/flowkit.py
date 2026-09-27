@@ -49,7 +49,9 @@ class Flow:
             body["evaluator_name"] = name
         return self.c.post(f"/api/submissions/{sub_id}/evaluations", json=body, headers=H(actor))
 
-    def rate(self, ev: dict, score: int, complete=True):
+    def rate(self, ev: dict, score: int, complete=True, actor=None):
+        actor = actor or ev.get("evaluator_name") or ""
+        hdr = H(actor)
         ids = []
 
         def walk(ns):
@@ -58,10 +60,11 @@ class Flow:
 
         walk(ev["version"]["parameters"])
         r = self.c.put(f"/api/evaluations/{ev['id']}",
-                       json={"ratings": [{"parameter_id": i, "judged_score": score} for i in ids]})
-        assert r.status_code == 200, r.text
+                       json={"ratings": [{"parameter_id": i, "judged_score": score} for i in ids]}, headers=hdr)
+        if r.status_code != 200:
+            return r
         if complete:
-            return self.c.post(f"/api/evaluations/{ev['id']}/complete")
+            return self.c.post(f"/api/evaluations/{ev['id']}/complete", headers=hdr)
         return r
 
     def judge(self, sub_id, score, name="Bob", evaluator_type="human"):

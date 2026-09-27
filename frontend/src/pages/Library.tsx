@@ -51,7 +51,7 @@ export default function Library() {
         <div className="grid cards">
           {shown.map((c) => {
             const published = [...c.versions].reverse().find((v) => v.status === "published");
-            const draft = c.versions.find((v) => v.status === "draft");
+            const draft = c.versions.find((v) => v.status === "draft" || v.status === "in_review");
             return (
               <div className="card" key={c.id}>
                 <div className="row" style={{ marginBottom: 6 }}>
@@ -60,6 +60,7 @@ export default function Library() {
                   <span className="spacer" />
                   {published && <StatusChip status={`published`} />}
                   {draft && <StatusChip status="draft" />}
+                  {c.versions.some((v) => v.status === "in_review") && <StatusChip status="in_review" />}
                 </div>
                 <h2 style={{ marginBottom: 6 }}>{c.name}</h2>
                 <p className="muted small" style={{ minHeight: 38 }}>{c.purpose || "No purpose stated yet."}</p>
@@ -118,6 +119,7 @@ function CreateDialog({ types, onClose, onTypesChanged }: {
         version: {
           purpose: "", scope: "", objective: "", guidance: "", rating_scale: scale, target_score: target,
           aggregation: "weighted_mean", max_depth: 4, qtc_enabled: false, parameters: [],
+          required_judges: 1, judge_tolerance_pct: 10, require_self_appraisal: false, is_foundational: false,
         },
       };
       const card = await api.createScorecard(d);

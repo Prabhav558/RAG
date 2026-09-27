@@ -117,18 +117,18 @@ def submissions(subject_id: int | None = None, status: str | None = None, owner:
 @router.post("/subjects/{subject_id}/submissions", status_code=201)
 def start_submission(subject_id: int, body: flow.SubmissionIn, who: str = Depends(actor),
                      db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.start_submission(db, _subject(db, subject_id), body, who))
+    return flow.submission_view(db, flow.start_submission(db, _subject(db, subject_id), body, who), who)
 
 
 @router.get("/submissions/{submission_id}")
-def get_submission(submission_id: int, db: Session = Depends(get_session)):
-    return flow.submission_view(db, _submission(db, submission_id))
+def get_submission(submission_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+    return flow.submission_view(db, _submission(db, submission_id), x_actor)
 
 
 @router.patch("/submissions/{submission_id}")
 def update_submission(submission_id: int, body: flow.SubmissionUpdate, who: str = Depends(actor),
                       db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.update_submission(db, _submission(db, submission_id), body, who))
+    return flow.submission_view(db, flow.update_submission(db, _submission(db, submission_id), body, who), who)
 
 
 @router.post("/submissions/{submission_id}/evaluations", status_code=201)
@@ -140,28 +140,28 @@ def add_evaluation(submission_id: int, body: flow.SubmissionEvaluationIn, who: s
 
 @router.post("/submissions/{submission_id}/submit")
 def submit(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.submit(db, _submission(db, submission_id), who))
+    return flow.submission_view(db, flow.submit(db, _submission(db, submission_id), who), who)
 
 
 @router.post("/submissions/{submission_id}/withdraw")
 def withdraw(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.withdraw(db, _submission(db, submission_id), who))
+    return flow.submission_view(db, flow.withdraw(db, _submission(db, submission_id), who), who)
 
 
 @router.post("/submissions/{submission_id}/cancel")
 def cancel(submission_id: int, body: flow.ReasonIn, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.cancel(db, _submission(db, submission_id), who, body.reason))
+    return flow.submission_view(db, flow.cancel(db, _submission(db, submission_id), who, body.reason), who)
 
 
 @router.post("/submissions/{submission_id}/decide")
 def decide(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.decide(db, _submission(db, submission_id), who))
+    return flow.submission_view(db, flow.decide(db, _submission(db, submission_id), who), who)
 
 
 @router.post("/submissions/{submission_id}/adjudicate")
 def adjudicate(submission_id: int, body: flow.AdjudicationIn, who: str = Depends(actor),
                db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.adjudicate(db, _submission(db, submission_id), who, body))
+    return flow.submission_view(db, flow.adjudicate(db, _submission(db, submission_id), who, body), who)
 
 
 # ---------------------------------------------------------------- diagnosis & behaviour analytics

@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { ApiError, Band, Scale, bandFor, fmt } from "../api";
+import { ReactNode, useEffect, useState } from "react";
+import { ApiError, Band, getActor, RollupStatus, Scale, bandFor, fmt, setActor } from "../api";
 
 export function ScoreBadge({ score, scale, size }: { score: number | null | undefined; scale: Scale; size?: "lg" }) {
   const band = bandFor(score, scale);
@@ -76,4 +76,53 @@ export function ScaleLegend({ scale }: { scale: Scale }) {
         ))}
     </div>
   );
+}
+
+const ROLLUP: Record<RollupStatus, { label: string; icon: string; cls: string; title: string }> = {
+  green: { label: "Green", icon: "✓", cls: "pass", title: "Passed: everything beneath is green too" },
+  red: { label: "Red", icon: "✗", cls: "fail", title: "Below target, or quality met but time/cost missed" },
+  blocked: { label: "Blocked", icon: "⛔", cls: "fail", title: "Stopped by a foundational red" },
+  in_progress: { label: "In progress", icon: "◔", cls: "draft", title: "Being worked on or judged" },
+  not_started: { label: "Not started", icon: "○", cls: "neutral", title: "No submission yet" },
+};
+
+export function RollupPill({ status }: { status: RollupStatus }) {
+  const r = ROLLUP[status] ?? ROLLUP.not_started;
+  return <span className={`chip ${r.cls}`} title={r.title}>{r.icon} {r.label}</span>;
+}
+
+export const SUBMISSION_LABEL: Record<string, string> = {
+  open: "Open", in_review: "In review", adjudication: "Adjudication", decided: "Decided", withdrawn: "Withdrawn",
+  cancelled: "Cancelled",
+};
+
+export function ActingAs() {
+  const [name, setName] = useState(getActor());
+  useEffect(() => {
+    const h = () => setName(getActor());
+    window.addEventListener("actor-changed", h);
+    return () => window.removeEventListener("actor-changed", h);
+  }, []);
+  return (
+    <label className="acting-as" title="Workflow actions are recorded under this name (Phase 1 has no login)">
+      <span>Acting as</span>
+      <input value={name} placeholder="your name" onChange={(e) => { setName(e.target.value); setActor(e.target.value.trim()); }} />
+    </label>
+  );
+}
+
+export function useActor(): string {
+  const [name, setName] = useState(getActor());
+  useEffect(() => {
+    const h = () => setName(getActor());
+    window.addEventListener("actor-changed", h);
+    return () => window.removeEventListener("actor-changed", h);
+  }, []);
+  return name;
+}
+
+export function when(d: string | null | undefined): string {
+  if (!d) return "—";
+  const dt = new Date(d);
+  return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }

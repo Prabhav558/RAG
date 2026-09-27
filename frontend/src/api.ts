@@ -27,7 +27,7 @@ export interface SubjectType {
 export interface VersionSummary {
   id: number;
   version_no: number;
-  status: "draft" | "published" | "retired";
+  status: "draft" | "in_review" | "published" | "retired";
   published_at: string | null;
   created_at: string;
 }
@@ -41,6 +41,7 @@ export interface ScorecardSummary {
   owner: string | null;
   tags: string[];
   is_template: boolean;
+  requires_review: boolean;
   purpose: string;
   parameter_count: number;
   leaf_count: number;
@@ -94,6 +95,10 @@ export interface VersionDef {
   aggregation: Aggregation;
   max_depth: number;
   qtc_enabled: boolean;
+  required_judges: number;
+  judge_tolerance_pct: number;
+  require_self_appraisal: boolean;
+  is_foundational: boolean;
   change_note?: string | null;
   parameters: ParamDef[];
 }
@@ -104,6 +109,7 @@ export interface ScorecardDefinition {
   owner?: string | null;
   tags: string[];
   is_template: boolean;
+  requires_review?: boolean;
   version: VersionDef;
 }
 
@@ -175,6 +181,11 @@ export interface VersionView {
   aggregation: Aggregation;
   max_depth: number;
   qtc_enabled: boolean;
+  required_judges: number;
+  judge_tolerance_pct: number;
+  require_self_appraisal: boolean;
+  is_foundational: boolean;
+  requires_review: boolean;
   rating_scale: Scale;
   parameters: NodeView[];
 }
@@ -201,6 +212,7 @@ export interface EvaluationView {
   attempt_no: number;
   origin: "app" | "import";
   origin_ref: string | null;
+  submission_id: number | null;
   final_score: number | null;
   band_label: string | null;
   rag: string | null;
@@ -236,6 +248,7 @@ export interface EvaluationRow {
   qtc_green: boolean | null;
   is_private: boolean;
   origin: "app" | "import";
+  submission_id: number | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -279,6 +292,100 @@ export interface MigrationReport {
   reconciliation: { rows_with_legacy_total: number; matched: number; mismatched: number; mismatched_unexplained: number; max_abs_diff: number };
 }
 
+export type RollupStatus = "green" | "not_started" | "in_progress" | "red" | "blocked";
+export interface SubjectNode {
+  id: number;
+  code: string;
+  name: string;
+  subject_type: string;
+  subject_type_name: string;
+  owner: string;
+  due_at: string | null;
+  budget: number | null;
+  own_status: RollupStatus;
+  status: RollupStatus;
+  latest: { submission_id: number; scorecard: string; score: number | null; band: string | null; rag: string | null; decision: string; qtc_green: boolean | null } | null;
+  active_submission: { id: number; status: string } | null;
+  descendant_counts: Partial<Record<RollupStatus, number>>;
+  children: SubjectNode[];
+}
+export interface SubmissionRow {
+  id: number;
+  subject_id: number;
+  subject_name: string;
+  scorecard: string;
+  version_no: number;
+  attempt_no: number;
+  owner: string;
+  status: string;
+  decision: string | null;
+  official_score: number | null;
+  official_band: string | null;
+  official_rag: string | null;
+  qtc_green: boolean | null;
+  adjudicated: boolean;
+  blocks_project: boolean;
+  created_at: string;
+  decided_at: string | null;
+}
+export interface SubjectDetail extends SubjectNode {
+  path: { id: number; name: string; code: string }[];
+  description: string | null;
+  blocked_by: { id: number; name: string }[];
+  submissions: SubmissionRow[];
+}
+export interface AuditEntry {
+  action: string;
+  from: string | null;
+  to: string | null;
+  actor: string;
+  at: string;
+  details: Record<string, unknown>;
+}
+export interface SubmissionView {
+  id: number;
+  status: "open" | "in_review" | "adjudication" | "decided" | "withdrawn" | "cancelled";
+  allowed_actions: string[];
+  subject: { id: number; code: string; name: string; owner: string; due_at: string | null; budget: number | null; blocked: boolean };
+  version: {
+    id: number; scorecard_id: number; scorecard_name: string; version_no: number; required_judges: number;
+    judge_tolerance_pct: number; require_self_appraisal: boolean; is_foundational: boolean; qtc_enabled: boolean;
+    target_score: number; rating_scale: Scale;
+  };
+  attempt_no: number;
+  previous_id: number | null;
+  owner: string;
+  title: string | null;
+  input_text: string | null;
+  actual_cost: number | null;
+  created_at: string;
+  submitted_at: string | null;
+  decided_at: string | null;
+  decision: "passed" | "redo" | null;
+  official_score: number | null;
+  official_band: string | null;
+  official_rag: string | null;
+  judge_spread_pct: number | null;
+  gate_failures: GateFailure[];
+  time_met: boolean | null;
+  cost_met: boolean | null;
+  qtc_green: boolean | null;
+  adjudicated: boolean;
+  decided_by: string | null;
+  decision_reason: string | null;
+  blocks_project: boolean;
+  evaluations: (EvaluationRow & { is_judge: boolean; redacted: boolean })[];
+  events: AuditEntry[];
+}
+export interface AttentionPerson {
+  person: string;
+  reds: number;
+  latest_red_at: string;
+  needs_diagnosis: boolean;
+  last_diagnosis: { cause: string; action: string; at: string; by: string } | null;
+  subjects: string[];
+}
+
 export class ApiError extends Error {
   code: string;
   details: unknown;
@@ -289,10 +396,33 @@ export class ApiError extends Error {
   }
 }
 
+const ACTOR_KEY = "scorecard-studio.actor";
+
+export function getActor(): string {
+  try {
+    return localStorage.getItem(ACTOR_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setActor(name: string) {
+  try {
+    localStorage.setItem(ACTOR_KEY, name);
+  } catch {
+    /* storage unavailable: the name lives for this page only */
+  }
+  window.dispatchEvent(new Event("actor-changed"));
+}
+
 async function request<T>(method: string, url: string, body?: unknown, isForm = false): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body && !isForm) headers["Content-Type"] = "application/json";
+  const actor = getActor();
+  if (actor) headers["X-Actor"] = actor;
   const res = await fetch(url, {
     method,
-    headers: body && !isForm ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
   });
   if (res.status === 204) return undefined as T;
@@ -318,7 +448,7 @@ export const api = {
   scorecard: (id: number) => request<ScorecardSummary>("GET", `/api/scorecards/${id}`),
   createScorecard: (d: ScorecardDefinition, publish = false) =>
     request<ScorecardSummary>("POST", `/api/scorecards?publish=${publish}`, d),
-  updateScorecardMeta: (id: number, b: Partial<Pick<ScorecardSummary, "name" | "owner" | "tags" | "is_template">> & { subject_type?: string }) =>
+  updateScorecardMeta: (id: number, b: Partial<Pick<ScorecardSummary, "name" | "owner" | "tags" | "is_template" | "requires_review">> & { subject_type?: string }) =>
     request<ScorecardSummary>("PATCH", `/api/scorecards/${id}`, b),
   archiveScorecard: (id: number) => request<void>("DELETE", `/api/scorecards/${id}`),
   cloneScorecard: (id: number, b: { code: string; name: string; version_id?: number }) =>
@@ -370,6 +500,41 @@ export const api = {
   llmJudge: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/llm-judge`),
   complete: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/complete`),
   void: (id: number, reason: string) => request<EvaluationView>("POST", `/api/evaluations/${id}/void`, { reason }),
+
+  // ---- Cycle 3: review, subjects, submissions, diagnosis
+  submitForReview: (vid: number, comment?: string) => request<VersionView>("POST", `/api/versions/${vid}/submit-for-review`, { comment }),
+  approve: (vid: number, comment?: string) => request<VersionView>("POST", `/api/versions/${vid}/approve`, { comment }),
+  requestChanges: (vid: number, comment: string) => request<VersionView>("POST", `/api/versions/${vid}/request-changes`, { comment }),
+  retire: (vid: number, reason: string) => request<VersionView>("POST", `/api/versions/${vid}/retire`, { reason }),
+  reviews: (vid: number) => request<{ action: string; actor: string; comment: string | null; at: string }[]>("GET", `/api/versions/${vid}/reviews`),
+
+  subjects: () => request<SubjectNode[]>("GET", "/api/subjects"),
+  subject: (id: number) => request<SubjectDetail>("GET", `/api/subjects/${id}`),
+  createSubject: (b: { name: string; subject_type: string; owner: string; parent_id?: number | null; description?: string; due_at?: string | null; budget?: number | null }) =>
+    request<SubjectNode>("POST", "/api/subjects", b),
+  updateSubject: (id: number, b: Record<string, unknown>) => request<SubjectNode>("PATCH", `/api/subjects/${id}`, b),
+  startSubmission: (subjectId: number, b: { version_id: number; title?: string; input_text?: string }) =>
+    request<SubmissionView>("POST", `/api/subjects/${subjectId}/submissions`, b),
+  submissions: (q: { subject_id?: number; status?: string; owner?: string } = {}) => {
+    const p = new URLSearchParams();
+    Object.entries(q).forEach(([k, v]) => v !== undefined && v !== "" && p.set(k, String(v)));
+    return request<SubmissionRow[]>("GET", `/api/submissions?${p}`);
+  },
+  submission: (id: number) => request<SubmissionView>("GET", `/api/submissions/${id}`),
+  updateSubmission: (id: number, b: { title?: string; input_text?: string; actual_cost?: number | null }) =>
+    request<SubmissionView>("PATCH", `/api/submissions/${id}`, b),
+  addSubmissionEvaluation: (id: number, b: { evaluator_type: string; evaluator_name?: string }) =>
+    request<EvaluationView>("POST", `/api/submissions/${id}/evaluations`, b),
+  submissionAction: (id: number, action: "submit" | "withdraw" | "decide") =>
+    request<SubmissionView>("POST", `/api/submissions/${id}/${action}`),
+  cancelSubmission: (id: number, reason: string) => request<SubmissionView>("POST", `/api/submissions/${id}/cancel`, { reason }),
+  adjudicate: (id: number, verdict: "passed" | "redo", reason: string) =>
+    request<SubmissionView>("POST", `/api/submissions/${id}/adjudicate`, { verdict, reason }),
+  attention: () => request<{ threshold: number; window_days: number; people: AttentionPerson[] }>("GET", "/api/attention"),
+  recordDiagnosis: (b: { person: string; cause: string; action: string; notes?: string }) => request<unknown>("POST", "/api/diagnoses", b),
+  diagnoses: () => request<{ id: number; person: string; cause: string; action: string; notes: string | null; recorded_by: string; recorded_at: string }[]>("GET", "/api/diagnoses"),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  behaviour: () => request<any>("GET", "/api/analytics/behaviour"),
 
   migrate: (mode: "preview" | "commit", files: File[], opts: Record<string, string | boolean>) => {
     const f = new FormData();
