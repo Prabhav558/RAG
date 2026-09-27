@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 
 from .db import SessionLocal, init_db
 from .routers import evaluations, flow, migrations, scorecards
@@ -16,7 +18,9 @@ FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    init_db()
+    # Development: create tables directly. Production: set SCORECARD_AUTO_CREATE=0 and run `alembic upgrade head`.
+    if os.environ.get("SCORECARD_AUTO_CREATE", "1") != "0":
+        init_db()
     with SessionLocal() as db:
         seed_reference_data(db)
     yield
@@ -37,6 +41,14 @@ async def contract_error_handler(_: Request, exc: RequestValidationError):
     # Never echo the raw input back: it may be NaN/Infinity (unserialisable) or megabytes of text.
     detail = [{"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")} for e in exc.errors()]
     return JSONResponse(status_code=422, content={"detail": detail[:50]})
+
+
+@app.exception_handler(StaleDataError)
+async def stale_data_handler(_: Request, exc: StaleDataError):
+    # optimistic concurrency: someone else changed this record between our read and our write
+    return JSONResponse(status_code=409, content={
+        "code": "S012", "message": "This was changed by someone else at the same time. Reload and try again.",
+        "details": None})
 
 
 @app.exception_handler(IntegrityError)

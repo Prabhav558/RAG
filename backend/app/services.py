@@ -595,10 +595,12 @@ def to_scoring_def(version: ScorecardVersion) -> scoring.ScorecardDef:
 # ---------------------------------------------------------------- evaluations
 
 
-def load_version(db: Session, version_id: int) -> ScorecardVersion:
+def load_version(db: Session, version_id: int, lock: bool = False) -> ScorecardVersion:
+    q = select(ScorecardVersion).where(ScorecardVersion.id == version_id)
+    if lock:  # serialise concurrent lifecycle actions on one version (Postgres; ignored by SQLite)
+        q = q.with_for_update(of=ScorecardVersion)
     v = db.scalar(
-        select(ScorecardVersion)
-        .where(ScorecardVersion.id == version_id)
+        q
         .options(
             selectinload(ScorecardVersion.parameters).selectinload(Parameter.metrics).selectinload(Metric.thresholds),
             selectinload(ScorecardVersion.parameters).selectinload(Parameter.criteria),
@@ -742,6 +744,7 @@ def recompute(ev: Evaluation) -> scoring.EvaluationOutcome:
     ev.rag = out.band.rag if out.band else None
     ev.quality_met, ev.qtc_green = out.quality_met, out.qtc_green
     ev.gate_failures = out.gate_failures
+    ev.gate_failure_count = len(out.gate_failures)
     return out
 
 

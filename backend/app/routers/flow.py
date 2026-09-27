@@ -27,8 +27,10 @@ def _subject(db: Session, subject_id: int) -> Subject:
     return s
 
 
-def _submission(db: Session, submission_id: int) -> Submission:
-    s = db.get(Submission, submission_id)
+def _submission(db: Session, submission_id: int, lock: bool = False) -> Submission:
+    """`lock` takes a row lock (SELECT ... FOR UPDATE) so concurrent workflow actions on one submission serialise;
+    without it two simultaneous 'decide' calls could both pass the state check. SQLite ignores the hint."""
+    s = db.get(Submission, submission_id, with_for_update=lock)
     if not s:
         raise svc.DomainError("E404", f"Submission {submission_id} not found", 404)
     return s
@@ -40,14 +42,14 @@ def _submission(db: Session, submission_id: int) -> Submission:
 @router.post("/versions/{version_id}/submit-for-review")
 def submit_for_review(version_id: int, body: flow.CommentIn, who: str = Depends(actor),
                       db: Session = Depends(get_session)):
-    v = svc.load_version(db, version_id)
+    v = svc.load_version(db, version_id, lock=True)
     flow.submit_for_review(db, v, who, body.comment)
     return svc.version_view(v)
 
 
 @router.post("/versions/{version_id}/approve")
 def approve(version_id: int, body: flow.CommentIn, who: str = Depends(actor), db: Session = Depends(get_session)):
-    v = svc.load_version(db, version_id)
+    v = svc.load_version(db, version_id, lock=True)
     flow.approve(db, v, who, body.comment)
     return svc.version_view(v)
 
@@ -55,14 +57,14 @@ def approve(version_id: int, body: flow.CommentIn, who: str = Depends(actor), db
 @router.post("/versions/{version_id}/request-changes")
 def request_changes(version_id: int, body: flow.CommentIn, who: str = Depends(actor),
                     db: Session = Depends(get_session)):
-    v = svc.load_version(db, version_id)
+    v = svc.load_version(db, version_id, lock=True)
     flow.request_changes(db, v, who, body.comment)
     return svc.version_view(v)
 
 
 @router.post("/versions/{version_id}/retire")
 def retire(version_id: int, body: flow.ReasonIn, who: str = Depends(actor), db: Session = Depends(get_session)):
-    v = svc.load_version(db, version_id)
+    v = svc.load_version(db, version_id, lock=True)
     flow.retire(db, v, who, body.reason)
     return svc.version_view(v)
 
@@ -128,40 +130,40 @@ def get_submission(submission_id: int, x_actor: str | None = Header(default=None
 @router.patch("/submissions/{submission_id}")
 def update_submission(submission_id: int, body: flow.SubmissionUpdate, who: str = Depends(actor),
                       db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.update_submission(db, _submission(db, submission_id), body, who), who)
+    return flow.submission_view(db, flow.update_submission(db, _submission(db, submission_id, lock=True), body, who), who)
 
 
 @router.post("/submissions/{submission_id}/evaluations", status_code=201)
 def add_evaluation(submission_id: int, body: flow.SubmissionEvaluationIn, who: str = Depends(actor),
                    db: Session = Depends(get_session)):
-    ev = flow.add_evaluation(db, _submission(db, submission_id), body, who)
+    ev = flow.add_evaluation(db, _submission(db, submission_id, lock=True), body, who)
     return svc.evaluation_view(ev)
 
 
 @router.post("/submissions/{submission_id}/submit")
 def submit(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.submit(db, _submission(db, submission_id), who), who)
+    return flow.submission_view(db, flow.submit(db, _submission(db, submission_id, lock=True), who), who)
 
 
 @router.post("/submissions/{submission_id}/withdraw")
 def withdraw(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.withdraw(db, _submission(db, submission_id), who), who)
+    return flow.submission_view(db, flow.withdraw(db, _submission(db, submission_id, lock=True), who), who)
 
 
 @router.post("/submissions/{submission_id}/cancel")
 def cancel(submission_id: int, body: flow.ReasonIn, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.cancel(db, _submission(db, submission_id), who, body.reason), who)
+    return flow.submission_view(db, flow.cancel(db, _submission(db, submission_id, lock=True), who, body.reason), who)
 
 
 @router.post("/submissions/{submission_id}/decide")
 def decide(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.decide(db, _submission(db, submission_id), who), who)
+    return flow.submission_view(db, flow.decide(db, _submission(db, submission_id, lock=True), who), who)
 
 
 @router.post("/submissions/{submission_id}/adjudicate")
 def adjudicate(submission_id: int, body: flow.AdjudicationIn, who: str = Depends(actor),
                db: Session = Depends(get_session)):
-    return flow.submission_view(db, flow.adjudicate(db, _submission(db, submission_id), who, body), who)
+    return flow.submission_view(db, flow.adjudicate(db, _submission(db, submission_id, lock=True), who, body), who)
 
 
 # ---------------------------------------------------------------- diagnosis & behaviour analytics

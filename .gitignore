@@ -7,3 +7,4 @@ node_modules/
 frontend/dist/
 .env
 *.tsbuildinfo
+backend/perf.db

@@ -148,7 +148,7 @@ def validate_definition(body: VersionIn, db: Session = Depends(get_session)):
 
 @router.post("/versions/{version_id}/publish")
 def publish(version_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
-    version = _version(db, version_id)
+    version = svc.load_version(db, version_id, lock=True)
     issues = svc.publish_version(db, version, actor=(x_actor or "anonymous").strip()[:120] or "anonymous")
     return {"version": svc.version_view(version), "issues": [i.model_dump() for i in issues]}
 

@@ -3,7 +3,8 @@ import tempfile
 from pathlib import Path
 
 _tmp = tempfile.mkdtemp()
-os.environ["SCORECARD_DB_URL"] = f"sqlite:///{_tmp}/test.db"
+# SCORECARD_TEST_DB_URL runs the whole suite on another database, e.g. postgresql+psycopg://...
+os.environ["SCORECARD_DB_URL"] = os.environ.get("SCORECARD_TEST_DB_URL", f"sqlite:///{_tmp}/test.db")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

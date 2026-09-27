@@ -1,0 +1,71 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: scorecard_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r backend/requirements.txt
+      - name: Create the migration-test database
+        if: matrix.database == 'postgres'
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c "create database scorecard_mig"
+      - name: Tests (scenarios, properties, corruption, migration, workflow, acceptance, concurrency, alembic)
+        working-directory: backend
+        env:
+          SCORECARD_TEST_DB_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg://postgres:postgres@localhost:5432/scorecard_test' || '' }}
+          SCORECARD_MIGRATION_TEST_DB_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg://postgres:postgres@localhost:5432/scorecard_mig' || '' }}
+        run: |
+          if [ -z "$SCORECARD_TEST_DB_URL" ]; then unset SCORECARD_TEST_DB_URL SCORECARD_MIGRATION_TEST_DB_URL; fi
+          python -m pytest -q
+      - name: Reference data and legacy migration dry runs
+        run: |
+          export SCORECARD_DB_URL=sqlite:///$RUNNER_TEMP/ci.db
+          python data/tools/ingest.py --reset
+          python data/tools/migrate.py --all --report-dir $RUNNER_TEMP/migration
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm ci
+        working-directory: frontend
+      - run: npx tsc -b && npx vite build
+        working-directory: frontend
+
+  smoke:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci && npx vite build && npx playwright-core install chromium
+        working-directory: frontend
+      - name: Start app and run the UI smoke suite
+        run: |
+          export SCORECARD_DB_URL=sqlite:///$RUNNER_TEMP/smoke.db
+          python data/tools/ingest.py --reset
+          (cd backend && uvicorn app.main:app --port 8000 &) && sleep 3
+          cd frontend && BASE_URL=http://localhost:8000 node e2e/smoke.mjs

@@ -86,6 +86,8 @@ CREATE TABLE subject (
 	FOREIGN KEY(parent_id) REFERENCES subject (id)
 );
 
+CREATE INDEX ix_subject_parent_id ON subject (parent_id);
+
 CREATE TABLE scorecard_version (
 	id INTEGER NOT NULL, 
 	scorecard_id INTEGER NOT NULL, 
@@ -104,6 +106,7 @@ CREATE TABLE scorecard_version (
 	judge_tolerance_pct FLOAT NOT NULL, 
 	require_self_appraisal BOOLEAN NOT NULL, 
 	is_foundational BOOLEAN NOT NULL, 
+	row_version INTEGER NOT NULL, 
 	based_on_version_id INTEGER, 
 	change_note TEXT, 
 	created_at DATETIME NOT NULL, 
@@ -140,6 +143,10 @@ CREATE TABLE parameter (
 	FOREIGN KEY(version_id) REFERENCES scorecard_version (id) ON DELETE CASCADE, 
 	FOREIGN KEY(parent_id) REFERENCES parameter (id) ON DELETE CASCADE
 );
+
+CREATE INDEX ix_parameter_version_id ON parameter (version_id);
+
+CREATE INDEX ix_parameter_parent_id ON parameter (parent_id);
 
 CREATE TABLE version_review (
 	id INTEGER NOT NULL, 
@@ -179,6 +186,7 @@ CREATE TABLE submission (
 	decided_by VARCHAR(120), 
 	decision_reason TEXT, 
 	blocks_project BOOLEAN NOT NULL, 
+	row_version INTEGER NOT NULL, 
 	PRIMARY KEY (id), 
 	CONSTRAINT ck_sub_status CHECK (status in ('open','in_review','adjudication','decided','withdrawn','cancelled')), 
 	CONSTRAINT ck_sub_decision CHECK (decision is null or decision in ('passed','redo')), 
@@ -187,6 +195,10 @@ CREATE TABLE submission (
 	FOREIGN KEY(version_id) REFERENCES scorecard_version (id), 
 	FOREIGN KEY(previous_id) REFERENCES submission (id)
 );
+
+CREATE INDEX ix_submission_status ON submission (status);
+
+CREATE INDEX ix_submission_decision_owner ON submission (decision, owner);
 
 CREATE TABLE rating_criterion (
 	id INTEGER NOT NULL, 
@@ -238,6 +250,7 @@ CREATE TABLE evaluation (
 	quality_met BOOLEAN, 
 	qtc_green BOOLEAN, 
 	gate_failures JSON NOT NULL, 
+	gate_failure_count INTEGER NOT NULL, 
 	summary TEXT, 
 	notes TEXT, 
 	created_at DATETIME NOT NULL, 
@@ -245,6 +258,7 @@ CREATE TABLE evaluation (
 	voided_reason TEXT, 
 	subject_id INTEGER, 
 	submission_id INTEGER, 
+	row_version INTEGER NOT NULL, 
 	PRIMARY KEY (id), 
 	CONSTRAINT ck_eval_status CHECK (status in ('draft','completed','void')), 
 	CONSTRAINT ck_eval_type CHECK (evaluator_type in ('self','human','llm')), 
@@ -253,6 +267,14 @@ CREATE TABLE evaluation (
 	FOREIGN KEY(subject_id) REFERENCES subject (id), 
 	FOREIGN KEY(submission_id) REFERENCES submission (id)
 );
+
+CREATE INDEX ix_evaluation_version_status ON evaluation (version_id, status);
+
+CREATE INDEX ix_evaluation_submission ON evaluation (submission_id);
+
+CREATE INDEX ix_evaluation_status_private ON evaluation (status, is_private);
+
+CREATE INDEX ix_evaluation_subject_ref ON evaluation (subject_ref);
 
 CREATE TABLE diagnosis (
 	id INTEGER NOT NULL, 

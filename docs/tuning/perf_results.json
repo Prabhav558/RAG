@@ -1,0 +1,182 @@
+{
+  "sqlite": {
+    "database": "sqlite",
+    "multiplier": 100,
+    "evaluations_in_db": 15943,
+    "load_seconds": 117.63100461600061,
+    "endpoints_ms": {
+      "library: GET /api/scorecards": {
+        "n": 30,
+        "p50": 11.5,
+        "p95": 12.5,
+        "max": 12.9
+      },
+      "builder: GET version": {
+        "n": 30,
+        "p50": 10.3,
+        "p95": 14.2,
+        "max": 50.6
+      },
+      "evaluations list (200)": {
+        "n": 30,
+        "p50": 19.0,
+        "p95": 23.9,
+        "max": 28.7
+      },
+      "evaluation page: GET evaluation": {
+        "n": 30,
+        "p50": 20.5,
+        "p95": 26.4,
+        "max": 33.3
+      },
+      "rate one parameter: PUT evaluation": {
+        "n": 50,
+        "p50": 22.2,
+        "p95": 25.3,
+        "max": 75.6
+      },
+      "create evaluation: POST": {
+        "n": 30,
+        "p50": 19.5,
+        "p95": 24.1,
+        "max": 66.7
+      },
+      "analytics overview": {
+        "n": 15,
+        "p50": 54.7,
+        "p95": 56.5,
+        "max": 67.4
+      },
+      "analytics parameters": {
+        "n": 15,
+        "p50": 57.0,
+        "p95": 61.4,
+        "max": 61.5
+      },
+      "analytics judge agreement": {
+        "n": 15,
+        "p50": 85.0,
+        "p95": 137.3,
+        "max": 141.2
+      },
+      "analytics behaviour": {
+        "n": 15,
+        "p50": 16.6,
+        "p95": 25.2,
+        "max": 65.1
+      },
+      "work tree: GET /api/subjects": {
+        "n": 30,
+        "p50": 22.0,
+        "p95": 24.2,
+        "max": 24.8
+      },
+      "subject page": {
+        "n": 30,
+        "p50": 12.6,
+        "p95": 17.1,
+        "max": 17.4
+      },
+      "submission page": {
+        "n": 30,
+        "p50": 6.8,
+        "p95": 9.9,
+        "max": 11.0
+      }
+    },
+    "full_evaluation_seconds": 0.089,
+    "evaluations_per_day_capacity_single_worker": 970374,
+    "over_target": [],
+    "note": "count taken directly from the database (includes private self-appraisals); the harness's list-based count capped at 1000 at the time"
+  },
+  "postgresql+psycopg": {
+    "database": "postgresql+psycopg",
+    "multiplier": 100,
+    "evaluations_in_db": 13781,
+    "load_seconds": 215.94647189699936,
+    "endpoints_ms": {
+      "library: GET /api/scorecards": {
+        "n": 30,
+        "p50": 26.7,
+        "p95": 31.3,
+        "max": 32.1
+      },
+      "builder: GET version": {
+        "n": 30,
+        "p50": 13.7,
+        "p95": 21.9,
+        "max": 84.8
+      },
+      "evaluations list (200)": {
+        "n": 30,
+        "p50": 23.5,
+        "p95": 25.0,
+        "max": 25.4
+      },
+      "evaluation page: GET evaluation": {
+        "n": 30,
+        "p50": 35.1,
+        "p95": 46.1,
+        "max": 108.3
+      },
+      "rate one parameter: PUT evaluation": {
+        "n": 50,
+        "p50": 35.5,
+        "p95": 41.3,
+        "max": 45.4
+      },
+      "create evaluation: POST": {
+        "n": 30,
+        "p50": 26.1,
+        "p95": 39.5,
+        "max": 88.1
+      },
+      "analytics overview": {
+        "n": 15,
+        "p50": 56.9,
+        "p95": 60.8,
+        "max": 62.1
+      },
+      "analytics parameters": {
+        "n": 15,
+        "p50": 28.4,
+        "p95": 31.9,
+        "max": 35.0
+      },
+      "analytics judge agreement": {
+        "n": 15,
+        "p50": 77.4,
+        "p95": 140.1,
+        "max": 144.4
+      },
+      "analytics behaviour": {
+        "n": 15,
+        "p50": 23.2,
+        "p95": 32.9,
+        "max": 75.2
+      },
+      "work tree: GET /api/subjects": {
+        "n": 30,
+        "p50": 38.1,
+        "p95": 41.0,
+        "max": 42.2
+      },
+      "subject page": {
+        "n": 30,
+        "p50": 18.7,
+        "p95": 21.8,
+        "max": 23.4
+      },
+      "submission page": {
+        "n": 30,
+        "p50": 8.5,
+        "p95": 10.1,
+        "max": 13.4
+      }
+    },
+    "full_evaluation_seconds": 0.111,
+    "evaluations_per_day_capacity_single_worker": 779228,
+    "over_target": [],
+    "note": "count excludes private self-appraisals"
+  }
+}

@@ -13,7 +13,6 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    Index,
     Integer,
     String,
     Text,
@@ -21,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .db import Base
+from .base import Base
 
 
 def utcnow() -> datetime:
@@ -90,7 +89,6 @@ class Scorecard(Base):
     owner: Mapped[str | None] = mapped_column(String(120))
     tags: Mapped[list] = mapped_column(JSON, default=list)
     is_template: Mapped[bool] = mapped_column(Boolean, default=False)
-    requires_review: Mapped[bool] = mapped_column(Boolean, default=False)  # publish only via reviewer approval
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -106,8 +104,7 @@ class ScorecardVersion(Base):
     __tablename__ = "scorecard_version"
     __table_args__ = (
         UniqueConstraint("scorecard_id", "version_no"),
-        CheckConstraint("status in ('draft','in_review','published','retired')", name="ck_version_status"),
-        CheckConstraint("required_judges between 1 and 5", name="ck_version_judges"),
+        CheckConstraint("status in ('draft','published','retired')", name="ck_version_status"),
         CheckConstraint("aggregation in ('weighted_mean','minimum')", name="ck_version_agg"),
         CheckConstraint("max_depth between 1 and 6", name="ck_version_depth"),
     )
@@ -125,12 +122,6 @@ class ScorecardVersion(Base):
     aggregation: Mapped[str] = mapped_column(String(20), default="weighted_mean")  # root-level roll-up
     max_depth: Mapped[int] = mapped_column(Integer, default=4)
     qtc_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Cycle 3: how submissions are judged
-    required_judges: Mapped[int] = mapped_column(Integer, default=1)
-    judge_tolerance_pct: Mapped[float] = mapped_column(Float, default=10.0)  # max score spread, % of scale
-    require_self_appraisal: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_foundational: Mapped[bool] = mapped_column(Boolean, default=False)  # red blocks the project
-    row_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # optimistic concurrency
     based_on_version_id: Mapped[int | None] = mapped_column(ForeignKey("scorecard_version.id"))
     change_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -142,8 +133,6 @@ class ScorecardVersion(Base):
     parameters: Mapped[list["Parameter"]] = relationship(
         back_populates="version", cascade="all, delete-orphan", order_by="Parameter.sort_order"
     )
-
-    __mapper_args__ = {"version_id_col": row_version}
 
 
 class Parameter(Base):
@@ -157,8 +146,8 @@ class Parameter(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    version_id: Mapped[int] = mapped_column(ForeignKey("scorecard_version.id", ondelete="CASCADE"), index=True)
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("parameter.id", ondelete="CASCADE"), index=True)
+    version_id: Mapped[int] = mapped_column(ForeignKey("scorecard_version.id", ondelete="CASCADE"))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("parameter.id", ondelete="CASCADE"))
     code: Mapped[str] = mapped_column(String(40))  # e.g. "2.3.1" — stable within a version
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
@@ -243,11 +232,6 @@ class Evaluation(Base):
         CheckConstraint("status in ('draft','completed','void')", name="ck_eval_status"),
         CheckConstraint("evaluator_type in ('self','human','llm')", name="ck_eval_type"),
         CheckConstraint("origin in ('app','import')", name="ck_eval_origin"),
-        # tuning: analytics and lists filter on these
-        Index("ix_evaluation_version_status", "version_id", "status"),
-        Index("ix_evaluation_status_private", "status", "is_private"),
-        Index("ix_evaluation_subject_ref", "subject_ref"),
-        Index("ix_evaluation_submission", "submission_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -273,20 +257,13 @@ class Evaluation(Base):
     quality_met: Mapped[bool | None] = mapped_column(Boolean)
     qtc_green: Mapped[bool | None] = mapped_column(Boolean)
     gate_failures: Mapped[list] = mapped_column(JSON, default=list)
-    gate_failure_count: Mapped[int] = mapped_column(Integer, default=0)  # SQL-aggregatable (JSON is not portable)
     summary: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     voided_reason: Mapped[str | None] = mapped_column(Text)
 
-    subject_id: Mapped[int | None] = mapped_column(ForeignKey("subject.id"))
-    submission_id: Mapped[int | None] = mapped_column(ForeignKey("submission.id"))
-
     version: Mapped[ScorecardVersion] = relationship()
-    submission: Mapped["Submission | None"] = relationship(back_populates="evaluations")
-    row_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # optimistic concurrency
-    __mapper_args__ = {"version_id_col": row_version}
     results: Mapped[list["ParameterResult"]] = relationship(back_populates="evaluation", cascade="all, delete-orphan")
     metric_values: Mapped[list["MetricValue"]] = relationship(
         back_populates="evaluation", cascade="all, delete-orphan"
@@ -354,127 +331,3 @@ class ParameterResult(Base):
 
     evaluation: Mapped[Evaluation] = relationship(back_populates="results")
     parameter: Mapped[Parameter] = relationship()
-
-
-# ---------------------------------------------------------------- Cycle 3: behaviour
-
-
-class VersionReview(Base):
-    """Governance trail of a scorecard version: submitted, approved, changes requested, published, retired."""
-
-    __tablename__ = "version_review"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    version_id: Mapped[int] = mapped_column(ForeignKey("scorecard_version.id", ondelete="CASCADE"))
-    action: Mapped[str] = mapped_column(String(20))
-    actor: Mapped[str] = mapped_column(String(120))
-    comment: Mapped[str | None] = mapped_column(Text)
-    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-
-class Subject(Base):
-    """A thing being scored (task, milestone, project, team, document, ...). Subjects form a tree."""
-
-    __tablename__ = "subject"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(60), unique=True)
-    name: Mapped[str] = mapped_column(String(300))
-    subject_type_id: Mapped[int] = mapped_column(ForeignKey("subject_type.id"))
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("subject.id"), index=True)
-    owner: Mapped[str] = mapped_column(String(120))
-    description: Mapped[str | None] = mapped_column(Text)
-    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # QTC: agreed time
-    budget: Mapped[float | None] = mapped_column(Float)  # QTC: agreed cost (people-hours cost + infra)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    subject_type: Mapped[SubjectType] = relationship()
-    parent: Mapped["Subject | None"] = relationship(remote_side="Subject.id", back_populates="children")
-    children: Mapped[list["Subject"]] = relationship(back_populates="parent")
-    submissions: Mapped[list["Submission"]] = relationship(back_populates="subject", order_by="Submission.id")
-
-
-class Submission(Base):
-    """One attempt at getting a subject through a published scorecard version (the quality gate)."""
-
-    __tablename__ = "submission"
-    __table_args__ = (
-        CheckConstraint(
-            "status in ('open','in_review','adjudication','decided','withdrawn','cancelled')", name="ck_sub_status"
-        ),
-        CheckConstraint("decision is null or decision in ('passed','redo')", name="ck_sub_decision"),
-        UniqueConstraint("subject_id", "version_id", "attempt_no"),
-        Index("ix_submission_status", "status"),
-        Index("ix_submission_decision_owner", "decision", "owner"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    subject_id: Mapped[int] = mapped_column(ForeignKey("subject.id"))
-    version_id: Mapped[int] = mapped_column(ForeignKey("scorecard_version.id"))
-    attempt_no: Mapped[int] = mapped_column(Integer, default=1)
-    previous_id: Mapped[int | None] = mapped_column(ForeignKey("submission.id"))
-    owner: Mapped[str] = mapped_column(String(120))
-    status: Mapped[str] = mapped_column(String(15), default="open")
-    title: Mapped[str | None] = mapped_column(String(300))
-    input_text: Mapped[str | None] = mapped_column(Text)
-    actual_cost: Mapped[float | None] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # decision (computed by the gate, or recorded by an adjudicator)
-    decision: Mapped[str | None] = mapped_column(String(10))
-    official_score: Mapped[float | None] = mapped_column(Float)
-    official_band: Mapped[str | None] = mapped_column(String(40))
-    official_rag: Mapped[str | None] = mapped_column(String(5))
-    judge_spread_pct: Mapped[float | None] = mapped_column(Float)
-    gate_failures: Mapped[list] = mapped_column(JSON, default=list)
-    time_met: Mapped[bool | None] = mapped_column(Boolean)
-    cost_met: Mapped[bool | None] = mapped_column(Boolean)
-    qtc_green: Mapped[bool | None] = mapped_column(Boolean)
-    adjudicated: Mapped[bool] = mapped_column(Boolean, default=False)
-    decided_by: Mapped[str | None] = mapped_column(String(120))
-    decision_reason: Mapped[str | None] = mapped_column(Text)
-    blocks_project: Mapped[bool] = mapped_column(Boolean, default=False)  # foundational red (stop rule)
-    row_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # optimistic concurrency
-
-    subject: Mapped[Subject] = relationship(back_populates="submissions")
-    version: Mapped[ScorecardVersion] = relationship()
-    evaluations: Mapped[list[Evaluation]] = relationship(back_populates="submission", order_by="Evaluation.id")
-
-    __mapper_args__ = {"version_id_col": row_version}
-
-
-class Diagnosis(Base):
-    """Why a person keeps getting reds, and what is being done about it (framework §12)."""
-
-    __tablename__ = "diagnosis"
-    __table_args__ = (
-        CheckConstraint("cause in ('skill','aptitude','will','allocation')", name="ck_diag_cause"),
-        CheckConstraint("action in ('train','reassign','discuss','rescope','none')", name="ck_diag_action"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    person: Mapped[str] = mapped_column(String(120))
-    cause: Mapped[str] = mapped_column(String(12))
-    action: Mapped[str] = mapped_column(String(12))
-    notes: Mapped[str | None] = mapped_column(Text)
-    submission_id: Mapped[int | None] = mapped_column(ForeignKey("submission.id"))
-    recorded_by: Mapped[str] = mapped_column(String(120))
-    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-
-class AuditEvent(Base):
-    """Every state transition, with who did it and why."""
-
-    __tablename__ = "audit_event"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    entity: Mapped[str] = mapped_column(String(30))  # version | submission | subject | evaluation | diagnosis
-    entity_id: Mapped[int] = mapped_column(Integer, index=True)
-    action: Mapped[str] = mapped_column(String(30))
-    from_state: Mapped[str | None] = mapped_column(String(20))
-    to_state: Mapped[str | None] = mapped_column(String(20))
-    actor: Mapped[str] = mapped_column(String(120))
-    details: Mapped[dict] = mapped_column(JSON, default=dict)
-    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
