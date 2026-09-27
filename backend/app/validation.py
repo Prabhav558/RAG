@@ -98,10 +98,12 @@ def validate_version(v: VersionIn, scale: ScaleInfo) -> list[Issue]:
                 issues.append(_err("V007", f"Criterion {c.score_min}–{c.score_max} is outside the scale", here))
             if c.score_max < c.score_min:
                 issues.append(_err("V007", f"Criterion range {c.score_min}–{c.score_max} is inverted", here))
-            if not c.qualitative.strip():
-                issues.append(_err("V019", f"Criterion {c.score_min}–{c.score_max} has no qualitative guideline", here))
             for s in range(max(c.score_min, lo), min(c.score_max, hi) + 1):
                 covered[s] = covered.get(s, 0) + 1
+        blank = [f"{c.score_min}–{c.score_max}" if c.score_min != c.score_max else str(c.score_min)
+                 for c in p.criteria if not c.qualitative.strip()]
+        if blank:
+            issues.append(_err("V019", f"Rating-matrix rows without a qualitative guideline: {', '.join(blank)}", here))
         missing = [s for s in range(lo, hi + 1) if s not in covered]
         overlap = [s for s, n in covered.items() if n > 1]
         if missing:

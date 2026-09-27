@@ -1,0 +1,365 @@
+export interface Band {
+  label: string;
+  lower_bound: number;
+  color_hex: string;
+  font_hex: string;
+  rag: string;
+  meaning?: string | null;
+}
+
+export interface Scale {
+  id: number;
+  code: string;
+  name: string;
+  min_value: number;
+  max_value: number;
+  description?: string | null;
+  bands: Band[];
+}
+
+export interface SubjectType {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface VersionSummary {
+  id: number;
+  version_no: number;
+  status: "draft" | "published" | "retired";
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface ScorecardSummary {
+  id: number;
+  code: string;
+  name: string;
+  subject_type: string;
+  subject_type_name: string;
+  owner: string | null;
+  tags: string[];
+  is_template: boolean;
+  purpose: string;
+  parameter_count: number;
+  leaf_count: number;
+  depth: number;
+  evaluation_count: number;
+  versions: VersionSummary[];
+}
+
+// ---- portable definition (builder) ----
+export interface Threshold {
+  min_value: number | null;
+  max_value: number | null;
+  score: number;
+}
+export interface MetricDef {
+  code: string;
+  name: string;
+  unit?: string | null;
+  data_type: "number" | "percent" | "count" | "boolean";
+  description?: string | null;
+  thresholds: Threshold[];
+}
+export interface Criterion {
+  score_min: number;
+  score_max: number;
+  qualitative: string;
+  quantitative?: string | null;
+}
+export type Aggregation = "weighted_mean" | "minimum";
+export interface ParamDef {
+  _key?: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  weight: number;
+  aggregation: Aggregation;
+  is_critical: boolean;
+  min_acceptable_score: number | null;
+  is_optional: boolean;
+  criteria: Criterion[];
+  metrics: MetricDef[];
+  children: ParamDef[];
+}
+export interface VersionDef {
+  purpose: string;
+  scope: string;
+  objective: string;
+  guidance?: string | null;
+  rating_scale: string;
+  target_score: number;
+  aggregation: Aggregation;
+  max_depth: number;
+  qtc_enabled: boolean;
+  change_note?: string | null;
+  parameters: ParamDef[];
+}
+export interface ScorecardDefinition {
+  code: string;
+  name: string;
+  subject_type: string;
+  owner?: string | null;
+  tags: string[];
+  is_template: boolean;
+  version: VersionDef;
+}
+
+export interface Issue {
+  code: string;
+  severity: "error" | "warning";
+  message: string;
+  path?: string | null;
+}
+
+// ---- version / evaluation views (with ids) ----
+export interface ResultView {
+  judged_score: number | null;
+  computed_score: number | null;
+  final_score: number | null;
+  score_source: string;
+  not_applicable: boolean;
+  rationale: string | null;
+  evidence: string | null;
+  confidence: number | null;
+  override_reason: string | null;
+  effective_weight: number | null;
+  band_label: string | null;
+}
+export interface MetricView {
+  id: number;
+  code: string;
+  name: string;
+  unit: string | null;
+  data_type: string;
+  description: string | null;
+  thresholds: Threshold[];
+  value?: number | null;
+  value_source?: string | null;
+  value_note?: string | null;
+}
+export interface NodeView {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  level: number;
+  weight: number;
+  effective_weight: number | null;
+  aggregation: Aggregation;
+  is_critical: boolean;
+  min_acceptable_score: number | null;
+  is_optional: boolean;
+  is_leaf: boolean;
+  criteria: Criterion[];
+  metrics: MetricView[];
+  children: NodeView[];
+  result?: ResultView | null;
+}
+export interface VersionView {
+  id: number;
+  scorecard_id: number;
+  scorecard_code: string;
+  scorecard_name: string;
+  subject_type: string;
+  subject_type_name: string;
+  version_no: number;
+  status: string;
+  purpose: string;
+  scope: string;
+  objective: string;
+  guidance: string | null;
+  target_score: number;
+  aggregation: Aggregation;
+  max_depth: number;
+  qtc_enabled: boolean;
+  rating_scale: Scale;
+  parameters: NodeView[];
+}
+export interface GateFailure {
+  parameter_id: number;
+  code: string;
+  name: string;
+  score: number;
+  floor: number;
+}
+export interface EvaluationView {
+  id: number;
+  status: "draft" | "completed" | "void";
+  subject_name: string;
+  subject_ref: string | null;
+  input_text: string | null;
+  evaluator_type: "self" | "human" | "llm";
+  evaluator_name: string | null;
+  judge_model: string | null;
+  is_private: boolean;
+  target_score: number;
+  time_met: boolean | null;
+  cost_met: boolean | null;
+  attempt_no: number;
+  final_score: number | null;
+  band_label: string | null;
+  rag: string | null;
+  quality_met: boolean | null;
+  qtc_green: boolean | null;
+  gate_failures: GateFailure[];
+  pending_parameter_ids: number[];
+  summary: string | null;
+  notes: string | null;
+  created_at: string;
+  completed_at: string | null;
+  voided_reason: string | null;
+  documents: { id: number; filename: string; media_type: string | null; chars: number }[];
+  version: VersionView;
+  judge_unrated?: number;
+}
+export interface EvaluationRow {
+  id: number;
+  scorecard_id: number;
+  scorecard_name: string;
+  version_id: number;
+  version_no: number;
+  subject_name: string;
+  subject_ref: string | null;
+  evaluator_type: string;
+  evaluator_name: string | null;
+  status: string;
+  final_score: number | null;
+  target_score: number;
+  band_label: string | null;
+  rag: string | null;
+  quality_met: boolean | null;
+  qtc_green: boolean | null;
+  is_private: boolean;
+  created_at: string;
+  completed_at: string | null;
+}
+export interface RatingIn {
+  parameter_id: number;
+  judged_score: number | null;
+  not_applicable: boolean;
+  rationale: string | null;
+  evidence: string | null;
+  confidence: number | null;
+  override_reason: string | null;
+}
+
+export class ApiError extends Error {
+  code: string;
+  details: unknown;
+  constructor(code: string, message: string, details: unknown) {
+    super(message);
+    this.code = code;
+    this.details = details;
+  }
+}
+
+async function request<T>(method: string, url: string, body?: unknown, isForm = false): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    headers: body && !isForm ? { "Content-Type": "application/json" } : undefined,
+    body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
+  });
+  if (res.status === 204) return undefined as T;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data?.code) throw new ApiError(data.code, data.message, data.details);
+    const msg = Array.isArray(data?.detail)
+      ? data.detail.map((d: { loc: string[]; msg: string }) => `${d.loc.slice(1).join(".")}: ${d.msg}`).join("; ")
+      : `${res.status} ${res.statusText}`;
+    throw new ApiError("HTTP", msg, data);
+  }
+  return data as T;
+}
+
+export const api = {
+  scales: () => request<Scale[]>("GET", "/api/meta/scales"),
+  subjectTypes: () => request<SubjectType[]>("GET", "/api/meta/subject-types"),
+  createSubjectType: (b: { code: string; name: string; description?: string }) =>
+    request<SubjectType>("POST", "/api/meta/subject-types", b),
+  createScale: (b: Omit<Scale, "id">) => request<Scale>("POST", "/api/meta/scales", b),
+
+  scorecards: () => request<ScorecardSummary[]>("GET", "/api/scorecards"),
+  scorecard: (id: number) => request<ScorecardSummary>("GET", `/api/scorecards/${id}`),
+  createScorecard: (d: ScorecardDefinition, publish = false) =>
+    request<ScorecardSummary>("POST", `/api/scorecards?publish=${publish}`, d),
+  updateScorecardMeta: (id: number, b: Partial<Pick<ScorecardSummary, "name" | "owner" | "tags" | "is_template">> & { subject_type?: string }) =>
+    request<ScorecardSummary>("PATCH", `/api/scorecards/${id}`, b),
+  archiveScorecard: (id: number) => request<void>("DELETE", `/api/scorecards/${id}`),
+  cloneScorecard: (id: number, b: { code: string; name: string; version_id?: number }) =>
+    request<ScorecardSummary>("POST", `/api/scorecards/${id}/clone`, b),
+
+  version: (id: number) => request<VersionView>("GET", `/api/versions/${id}`),
+  definition: (id: number) => request<ScorecardDefinition>("GET", `/api/versions/${id}/definition`),
+  saveDraft: (id: number, v: VersionDef) =>
+    request<{ version: VersionView; issues: Issue[] }>("PUT", `/api/versions/${id}`, v),
+  validateDefinition: (v: VersionDef) => request<Issue[]>("POST", "/api/validate-definition", v),
+  publish: (id: number) => request<{ version: VersionView; issues: Issue[] }>("POST", `/api/versions/${id}/publish`),
+  newDraft: (id: number, note?: string) =>
+    request<VersionView>("POST", `/api/versions/${id}/new-draft${note ? `?change_note=${encodeURIComponent(note)}` : ""}`),
+  deleteDraft: (id: number) => request<void>("DELETE", `/api/versions/${id}`),
+
+  evaluations: (q: { scorecard_id?: number; status?: string; include_private?: boolean } = {}) => {
+    const p = new URLSearchParams();
+    Object.entries(q).forEach(([k, v]) => v !== undefined && v !== "" && p.set(k, String(v)));
+    return request<EvaluationRow[]>("GET", `/api/evaluations?${p}`);
+  },
+  evaluation: (id: number) => request<EvaluationView>("GET", `/api/evaluations/${id}`),
+  createEvaluation: (b: {
+    version_id: number;
+    subject_name: string;
+    subject_ref?: string;
+    input_text?: string;
+    evaluator_type: string;
+    evaluator_name?: string;
+    target_score?: number;
+    attempt_no?: number;
+  }) => request<EvaluationView>("POST", "/api/evaluations", b),
+  updateEvaluation: (
+    id: number,
+    b: {
+      ratings?: RatingIn[];
+      metric_values?: { metric_id: number; value: number | null; source?: string }[];
+      input_text?: string;
+      time_met?: boolean | null;
+      cost_met?: boolean | null;
+      summary?: string;
+      notes?: string;
+    },
+  ) => request<EvaluationView>("PUT", `/api/evaluations/${id}`, b),
+  uploadDocument: (id: number, file: File) => {
+    const f = new FormData();
+    f.append("file", file);
+    return request<EvaluationView>("POST", `/api/evaluations/${id}/documents`, f, true);
+  },
+  llmJudge: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/llm-judge`),
+  complete: (id: number) => request<EvaluationView>("POST", `/api/evaluations/${id}/complete`),
+  void: (id: number, reason: string) => request<EvaluationView>("POST", `/api/evaluations/${id}/void`, { reason }),
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  overview: (scorecard_id?: number) => request<any>("GET", `/api/analytics/overview${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameterBreakdown: (version_id: number) => request<any>("GET", `/api/analytics/parameters/${version_id}`),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agreement: (scorecard_id?: number) => request<any>("GET", `/api/analytics/judge-agreement${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  trend: (scorecard_id?: number) => request<any[]>("GET", `/api/analytics/trend${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),
+};
+
+export function bandFor(score: number | null | undefined, scale: Scale): Band | null {
+  if (score === null || score === undefined) return null;
+  const sorted = [...scale.bands].sort((a, b) => b.lower_bound - a.lower_bound);
+  return sorted.find((b) => score >= b.lower_bound - 1e-9) ?? null;
+}
+
+export function fmt(n: number | null | undefined, digits = 2): string {
+  if (n === null || n === undefined) return "—";
+  return Number.isInteger(n) ? String(n) : n.toFixed(digits).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+export function pct(n: number | null | undefined, digits = 0): string {
+  if (n === null || n === undefined) return "—";
+  return `${(n * 100).toFixed(digits)}%`;
+}
