@@ -1,0 +1,62 @@
+{
+  "code": "cloud-deployment",
+  "name": "Cloud Deployment Readiness",
+  "subject_type": "deployment",
+  "owner": "Prabhav558",
+  "tags": ["engineering", "percentage scale", "audit"],
+  "is_template": true,
+  "version": {
+    "purpose": "Make every production deployment repeatable and reversible before it happens.",
+    "scope": "One production deployment: pre-deployment checklist, rollback plan, observability and runbook.",
+    "objective": "A deployment proceeds only at 90% readiness or above with a tested rollback.",
+    "guidance": "Percentage scale. Pre-deployment checks are scored directly from the checklist pass rate.",
+    "rating_scale": "0-100-pct",
+    "target_score": 90,
+    "aggregation": "weighted_mean",
+    "max_depth": 2,
+    "parameters": [
+      {"code": "PD", "name": "Pre-deployment checks", "weight": 35,
+       "metrics": [{"code": "checklist_pass_pct", "name": "Checklist items passed", "unit": "%", "data_type": "percent",
+         "thresholds": [
+          {"min_value": 100, "max_value": null, "score": 100},
+          {"min_value": 95, "max_value": 100, "score": 92},
+          {"min_value": 90, "max_value": 95, "score": 85},
+          {"min_value": 75, "max_value": 90, "score": 70},
+          {"min_value": 50, "max_value": 75, "score": 45},
+          {"min_value": null, "max_value": 50, "score": 20}
+         ]}],
+       "criteria": [
+        {"score_min": 95, "score_max": 100, "qualitative": "Every checklist item passed and evidenced.", "quantitative": "100% passed"},
+        {"score_min": 90, "score_max": 94, "qualitative": "One non-critical item waived with sign-off.", "quantitative": "95–99%"},
+        {"score_min": 75, "score_max": 89, "qualitative": "Several items unchecked.", "quantitative": "75–94%"},
+        {"score_min": 50, "score_max": 74, "qualitative": "Checklist partially followed.", "quantitative": "50–74%"},
+        {"score_min": 25, "score_max": 49, "qualitative": "Checklist mostly ignored.", "quantitative": "< 50%"},
+        {"score_min": 0, "score_max": 24, "qualitative": "No checklist.", "quantitative": "None"}
+      ]},
+      {"code": "RB", "name": "Rollback readiness", "weight": 30, "is_critical": true, "min_acceptable_score": 90, "criteria": [
+        {"score_min": 95, "score_max": 100, "qualitative": "Rollback scripted and rehearsed in staging this release.", "quantitative": "Rehearsed; < 15 min"},
+        {"score_min": 90, "score_max": 94, "qualitative": "Rollback scripted; rehearsed previously.", "quantitative": "Scripted"},
+        {"score_min": 75, "score_max": 89, "qualitative": "Rollback documented, manual.", "quantitative": "Manual steps"},
+        {"score_min": 50, "score_max": 74, "qualitative": "Rollback possible but undocumented.", "quantitative": "Tribal knowledge"},
+        {"score_min": 25, "score_max": 49, "qualitative": "Rollback unclear.", "quantitative": "Unknown"},
+        {"score_min": 0, "score_max": 24, "qualitative": "Irreversible change with no plan.", "quantitative": "None"}
+      ]},
+      {"code": "OB", "name": "Monitoring & alerts", "weight": 20, "criteria": [
+        {"score_min": 95, "score_max": 100, "qualitative": "Dashboards and alerts for every changed service, with success criteria defined.", "quantitative": "100% of services"},
+        {"score_min": 90, "score_max": 94, "qualitative": "Alerts in place; success criteria informal.", "quantitative": "100%, informal criteria"},
+        {"score_min": 75, "score_max": 89, "qualitative": "Partial coverage.", "quantitative": ">= 75% of services"},
+        {"score_min": 50, "score_max": 74, "qualitative": "Monitoring by eyeballing logs.", "quantitative": "No alerts"},
+        {"score_min": 25, "score_max": 49, "qualitative": "Minimal.", "quantitative": "< 50%"},
+        {"score_min": 0, "score_max": 24, "qualitative": "Blind deployment.", "quantitative": "None"}
+      ]},
+      {"code": "RN", "name": "Runbook & communication", "weight": 15, "criteria": [
+        {"score_min": 95, "score_max": 100, "qualitative": "Runbook, owner, window and stakeholder notice all in place.", "quantitative": "4 of 4"},
+        {"score_min": 90, "score_max": 94, "qualitative": "Minor gap.", "quantitative": "4 of 4, one late"},
+        {"score_min": 75, "score_max": 89, "qualitative": "One element missing.", "quantitative": "3 of 4"},
+        {"score_min": 50, "score_max": 74, "qualitative": "Two missing.", "quantitative": "2 of 4"},
+        {"score_min": 25, "score_max": 49, "qualitative": "Mostly missing.", "quantitative": "1 of 4"},
+        {"score_min": 0, "score_max": 24, "qualitative": "None.", "quantitative": "0 of 4"}
+      ]}
+    ]
+  }
+}

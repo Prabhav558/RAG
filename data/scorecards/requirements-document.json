@@ -1,0 +1,86 @@
+{
+  "code": "requirements-document",
+  "name": "Requirements Document Quality",
+  "subject_type": "document",
+  "owner": "Prabhav558",
+  "tags": ["foundational", "reference", "engineering"],
+  "is_template": true,
+  "version": {
+    "purpose": "Stop weak specifications before a team builds on them: an error here multiplies across every engineer-hour downstream.",
+    "scope": "Product requirements, functional specifications and PRDs. Excludes design documents and test plans.",
+    "objective": "A foundational requirements document scores 10: every requirement is unambiguous, testable and traceable to a stated purpose.",
+    "guidance": "Foundational artefact: the target is 10 (Quality Scorecard Framework §6.1). Count requirements when the guideline asks for percentages.",
+    "rating_scale": "0-10-rag",
+    "target_score": 10,
+    "aggregation": "weighted_mean",
+    "max_depth": 2,
+    "parameters": [
+      {"code": "PC", "name": "Purpose clarity", "weight": 15, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Problem, users and measurable outcomes stated in one or two sentences.", "quantitative": "Purpose <= 2 sentences with >= 1 measurable outcome"},
+        {"score_min": 9, "score_max": 9, "qualitative": "Purpose clear and measurable; slightly verbose.", "quantitative": "Purpose <= 4 sentences with measurable outcome"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Purpose clear, outcome not measurable.", "quantitative": "No numeric outcome"},
+        {"score_min": 6, "score_max": 7, "qualitative": "Purpose implied by the content.", "quantitative": "No explicit purpose section"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Purpose unclear or contradictory.", "quantitative": "Reviewers state different purposes"},
+        {"score_min": 0, "score_max": 3, "qualitative": "No evident purpose.", "quantitative": "Absent"}
+      ]},
+      {"code": "SC", "name": "Scope completeness", "weight": 15, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "In-scope and out-of-scope lists explicit; assumptions and dependencies listed.", "quantitative": "All 4 elements present"},
+        {"score_min": 9, "score_max": 9, "qualitative": "Scope explicit; one element thin.", "quantitative": "4 elements, one thin"},
+        {"score_min": 8, "score_max": 8, "qualitative": "In-scope explicit, out-of-scope partial.", "quantitative": "3 of 4 elements"},
+        {"score_min": 6, "score_max": 7, "qualitative": "Scope implied by feature list.", "quantitative": "2 of 4 elements"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Scope open-ended.", "quantitative": "1 of 4 elements"},
+        {"score_min": 0, "score_max": 3, "qualitative": "No scope.", "quantitative": "0 elements"}
+      ]},
+      {"code": "UN", "name": "Unambiguity", "weight": 25, "is_critical": true, "min_acceptable_score": 8,
+       "metrics": [
+        {"code": "ac_pct", "name": "Requirements with a testable acceptance criterion", "unit": "%", "data_type": "percent",
+         "thresholds": [
+          {"min_value": 100, "max_value": null, "score": 10},
+          {"min_value": 90, "max_value": 100, "score": 8},
+          {"min_value": 70, "max_value": 90, "score": 6},
+          {"min_value": 40, "max_value": 70, "score": 4},
+          {"min_value": null, "max_value": 40, "score": 2}
+         ]},
+        {"code": "undefined_terms", "name": "Undefined domain terms", "unit": "terms", "data_type": "count",
+         "thresholds": [
+          {"min_value": 0, "max_value": 1, "score": 10},
+          {"min_value": 1, "max_value": 3, "score": 8},
+          {"min_value": 3, "max_value": 6, "score": 6},
+          {"min_value": 6, "max_value": null, "score": 4}
+         ]}
+       ],
+       "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Every requirement has exactly one reasonable reading; independent teams would build the same thing.", "quantitative": "100% with acceptance criteria; 0 undefined terms; glossary complete"},
+        {"score_min": 8, "score_max": 9, "qualitative": "Requirements are clear; a small number of minor clarifications needed.", "quantitative": ">= 90% with acceptance criteria; <= 2 undefined terms, none critical"},
+        {"score_min": 6, "score_max": 7, "qualitative": "Mostly understandable, but several requirements are open to interpretation.", "quantitative": "70–89% with acceptance criteria; several undefined terms"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Frequent vague language; readers disagree on intent.", "quantitative": "40–69% with acceptance criteria; key terms undefined"},
+        {"score_min": 1, "score_max": 3, "qualitative": "Requirements are statements of intent, not specifications.", "quantitative": "< 40% with acceptance criteria; no glossary"},
+        {"score_min": 0, "score_max": 0, "qualitative": "No identifiable requirements.", "quantitative": "0 requirements"}
+      ]},
+      {"code": "TE", "name": "Testability", "weight": 20, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Every requirement maps to at least one verifiable test condition, including NFRs.", "quantitative": "100% incl. NFRs with numeric thresholds"},
+        {"score_min": 9, "score_max": 9, "qualitative": "Functional requirements testable; NFRs mostly quantified.", "quantitative": ">= 90% NFRs quantified"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Functional requirements testable; NFRs qualitative.", "quantitative": "NFRs without numbers"},
+        {"score_min": 6, "score_max": 7, "qualitative": "Many requirements need interpretation before a test can be written.", "quantitative": "60–89% testable"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Tests cannot be derived for most requirements.", "quantitative": "30–59% testable"},
+        {"score_min": 0, "score_max": 3, "qualitative": "Untestable.", "quantitative": "< 30% testable"}
+      ]},
+      {"code": "TR", "name": "Traceability", "weight": 10, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Every requirement has an ID and traces to a business objective.", "quantitative": "100% ID'd and traced"},
+        {"score_min": 9, "score_max": 9, "qualitative": "IDs throughout; tracing nearly complete.", "quantitative": ">= 90% traced"},
+        {"score_min": 8, "score_max": 8, "qualitative": "IDs throughout; tracing partial.", "quantitative": "70–89% traced"},
+        {"score_min": 6, "score_max": 7, "qualitative": "IDs present; no tracing.", "quantitative": "0% traced"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Inconsistent IDs.", "quantitative": "IDs on < 50%"},
+        {"score_min": 0, "score_max": 3, "qualitative": "No IDs.", "quantitative": "None"}
+      ]},
+      {"code": "ST", "name": "Structure", "weight": 15, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Follows the agreed template; navigable; zero duplication.", "quantitative": "Template 100%; 0 duplicate requirements"},
+        {"score_min": 9, "score_max": 9, "qualitative": "Template followed; one duplicate.", "quantitative": "1 duplicate"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Mostly templated; minor ordering issues.", "quantitative": "<= 3 structural issues"},
+        {"score_min": 6, "score_max": 7, "qualitative": "Own structure; readable.", "quantitative": "Template not used"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Hard to navigate.", "quantitative": "> 5 structural issues"},
+        {"score_min": 0, "score_max": 3, "qualitative": "Stream of consciousness.", "quantitative": "No structure"}
+      ]}
+    ]
+  }
+}

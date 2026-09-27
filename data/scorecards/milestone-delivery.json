@@ -1,0 +1,83 @@
+{
+  "code": "milestone-delivery",
+  "name": "Milestone Delivery Health",
+  "subject_type": "milestone",
+  "owner": "Prabhav558",
+  "tags": ["delivery", "qtc", "reference"],
+  "is_template": true,
+  "version": {
+    "purpose": "Decide whether a milestone is genuinely complete and green, not just reported as green.",
+    "scope": "Milestone deliverables, SMART objectives from its ODTQRC, risks, and stakeholder acceptance. Time and cost are recorded for the QTC rule.",
+    "objective": "A milestone is green only when quality reaches 8 AND it was delivered on time AND within cost.",
+    "guidance": "QTC is a logical AND: 1 × 1 × 0 = 0. Deliverable Quality uses MINIMUM roll-up — a milestone is only as good as its weakest deliverable.",
+    "rating_scale": "0-10-rag",
+    "target_score": 8,
+    "aggregation": "weighted_mean",
+    "max_depth": 3,
+    "qtc_enabled": true,
+    "parameters": [
+      {"code": "DQ", "name": "Deliverable quality", "weight": 40, "aggregation": "minimum", "is_critical": true, "min_acceptable_score": 7,
+       "description": "Minimum of its children: one weak deliverable caps the whole area.",
+       "children": [
+        {"code": "DQ.1", "name": "Completeness against scope", "weight": 1, "criteria": [
+          {"score_min": 10, "score_max": 10, "qualitative": "Every in-scope deliverable delivered and accepted.", "quantitative": "100% delivered"},
+          {"score_min": 9, "score_max": 9, "qualitative": "All delivered; one accepted with minor notes.", "quantitative": "100%, 1 note"},
+          {"score_min": 8, "score_max": 8, "qualitative": "All critical deliverables done; a minor one deferred by agreement.", "quantitative": ">= 90%, deferral agreed"},
+          {"score_min": 6, "score_max": 7, "qualitative": "Gaps remain.", "quantitative": "75–89%"},
+          {"score_min": 4, "score_max": 5, "qualitative": "Significant gaps.", "quantitative": "50–74%"},
+          {"score_min": 0, "score_max": 3, "qualitative": "Mostly undelivered.", "quantitative": "< 50%"}
+        ]},
+        {"code": "DQ.2", "name": "Defect escape", "weight": 1,
+         "metrics": [{"code": "escaped_defects", "name": "Defects found after milestone sign-off", "unit": "defects", "data_type": "count",
+           "thresholds": [
+            {"min_value": 0, "max_value": 1, "score": 10},
+            {"min_value": 1, "max_value": 3, "score": 8},
+            {"min_value": 3, "max_value": 5, "score": 6},
+            {"min_value": 5, "max_value": 8, "score": 4},
+            {"min_value": 8, "max_value": null, "score": 2}
+           ]}],
+         "criteria": [
+          {"score_min": 10, "score_max": 10, "qualitative": "No defects escaped.", "quantitative": "0"},
+          {"score_min": 8, "score_max": 9, "qualitative": "Minor escapes only.", "quantitative": "1–2"},
+          {"score_min": 6, "score_max": 7, "qualitative": "Several escapes.", "quantitative": "3–4"},
+          {"score_min": 4, "score_max": 5, "qualitative": "Many escapes.", "quantitative": "5–7"},
+          {"score_min": 1, "score_max": 3, "qualitative": "Quality failure.", "quantitative": ">= 8"},
+          {"score_min": 0, "score_max": 0, "qualitative": "Deliverable unusable.", "quantitative": "Blocking defect in production"}
+        ]}
+      ]},
+      {"code": "OA", "name": "Objective achievement", "weight": 30,
+       "metrics": [{"code": "smart_met_pct", "name": "SMART objectives met", "unit": "%", "data_type": "percent",
+         "thresholds": [
+          {"min_value": 100, "max_value": null, "score": 10},
+          {"min_value": 90, "max_value": 100, "score": 8},
+          {"min_value": 75, "max_value": 90, "score": 7},
+          {"min_value": 60, "max_value": 75, "score": 5},
+          {"min_value": null, "max_value": 60, "score": 3}
+         ]}],
+       "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "All SMART objectives met.", "quantitative": "100%"},
+        {"score_min": 8, "score_max": 9, "qualitative": "Nearly all met.", "quantitative": "90–99%"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Most met.", "quantitative": "75–89%"},
+        {"score_min": 5, "score_max": 6, "qualitative": "Many missed.", "quantitative": "60–74%"},
+        {"score_min": 1, "score_max": 4, "qualitative": "Mostly missed.", "quantitative": "< 60%"},
+        {"score_min": 0, "score_max": 0, "qualitative": "No objectives were defined.", "quantitative": "No ODTQRC objectives"}
+      ]},
+      {"code": "RM", "name": "Risk management", "weight": 15, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "All risks named with owner and mitigation; none materialised unmitigated.", "quantitative": "100% owned; 0 unmitigated hits"},
+        {"score_min": 8, "score_max": 9, "qualitative": "Risks managed; one late mitigation.", "quantitative": "1 late mitigation"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Risk list exists; owners partial.", "quantitative": ">= 70% owned"},
+        {"score_min": 5, "score_max": 6, "qualitative": "Risks known but not actively managed.", "quantitative": "< 70% owned"},
+        {"score_min": 3, "score_max": 4, "qualitative": "Risks materialised unmanaged.", "quantitative": ">= 1 unmitigated hit"},
+        {"score_min": 0, "score_max": 2, "qualitative": "No risk management.", "quantitative": "No risk list"}
+      ]},
+      {"code": "SA", "name": "Stakeholder acceptance", "weight": 15, "criteria": [
+        {"score_min": 10, "score_max": 10, "qualitative": "Formal sign-off with positive feedback.", "quantitative": "Signed off, 0 open actions"},
+        {"score_min": 8, "score_max": 9, "qualitative": "Signed off with minor actions.", "quantitative": "<= 2 open actions"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Informal acceptance.", "quantitative": "No formal sign-off"},
+        {"score_min": 5, "score_max": 6, "qualitative": "Accepted with reservations.", "quantitative": "> 2 open actions"},
+        {"score_min": 3, "score_max": 4, "qualitative": "Disputed.", "quantitative": "Escalation raised"},
+        {"score_min": 0, "score_max": 2, "qualitative": "Rejected.", "quantitative": "Rejected"}
+      ]}
+    ]
+  }
+}

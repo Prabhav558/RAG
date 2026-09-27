@@ -1,0 +1,43 @@
+{
+  "code": "client-email",
+  "name": "Client Email Quality",
+  "subject_type": "communication",
+  "owner": "Prabhav558",
+  "tags": ["communication", "floor-7"],
+  "is_template": true,
+  "version": {
+    "purpose": "Every client email is professional, clear and actionable; nothing below the organisational floor of 7 goes out.",
+    "scope": "A single outbound email to a client, including subject line and any attachments referenced.",
+    "objective": "Score 7 or above, with professional tone never below 7.",
+    "rating_scale": "0-10-rag",
+    "target_score": 7,
+    "aggregation": "weighted_mean",
+    "max_depth": 1,
+    "parameters": [
+      {"code": "CP", "name": "Clarity & purpose", "weight": 40, "criteria": [
+        {"score_min": 9, "score_max": 10, "qualitative": "Purpose in the first sentence; subject line states the ask; no re-reading needed.", "quantitative": "Purpose in sentence 1; <= 150 words or clearly sectioned"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Clear purpose; slightly long.", "quantitative": "Purpose in first paragraph"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Purpose findable.", "quantitative": "Purpose after first paragraph"},
+        {"score_min": 6, "score_max": 6, "qualitative": "Reader must infer the purpose.", "quantitative": "Implicit"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Confusing.", "quantitative": "Reader replies asking what is needed"},
+        {"score_min": 0, "score_max": 3, "qualitative": "No evident purpose.", "quantitative": "None"}
+      ]},
+      {"code": "PT", "name": "Professional tone", "weight": 30, "is_critical": true, "min_acceptable_score": 7, "criteria": [
+        {"score_min": 9, "score_max": 10, "qualitative": "Courteous, confident, error-free.", "quantitative": "0 typos; 0 informal phrases"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Professional; one small slip.", "quantitative": "1 typo"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Acceptable; a little casual.", "quantitative": "<= 2 informal phrases"},
+        {"score_min": 6, "score_max": 6, "qualitative": "Too casual or too stiff for the client.", "quantitative": "> 2 informal phrases"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Sloppy.", "quantitative": ">= 3 typos"},
+        {"score_min": 0, "score_max": 3, "qualitative": "Unprofessional or 'kiddish'.", "quantitative": "Any rude or flippant sentence"}
+      ]},
+      {"code": "AC", "name": "Actionability", "weight": 30, "criteria": [
+        {"score_min": 9, "score_max": 10, "qualitative": "Every action has an owner and date; decisions requested are explicit.", "quantitative": "100% of actions with owner + date"},
+        {"score_min": 8, "score_max": 8, "qualitative": "Actions clear; one missing a date.", "quantitative": "1 action without date"},
+        {"score_min": 7, "score_max": 7, "qualitative": "Next step is clear, owners implied.", "quantitative": "Owners implicit"},
+        {"score_min": 6, "score_max": 6, "qualitative": "Next step unclear.", "quantitative": "No explicit next step"},
+        {"score_min": 4, "score_max": 5, "qualitative": "Contradictory asks.", "quantitative": ">= 2 conflicting asks"},
+        {"score_min": 0, "score_max": 3, "qualitative": "Nothing actionable.", "quantitative": "None"}
+      ]}
+    ]
+  }
+}

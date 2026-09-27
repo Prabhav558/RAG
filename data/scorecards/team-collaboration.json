@@ -1,0 +1,64 @@
+{
+  "code": "team-collaboration",
+  "name": "Team Collaboration Health",
+  "subject_type": "team",
+  "owner": "Prabhav558",
+  "tags": ["people", "1-5 scale"],
+  "is_template": true,
+  "version": {
+    "purpose": "Give a team an honest, comparable read on how well it works together, so leads act on causes rather than symptoms.",
+    "scope": "One team over one sprint or month: communication, ownership, predictability, knowledge sharing, safety to report reds.",
+    "objective": "A healthy team averages 4 (Good) with no area below 3.",
+    "guidance": "1–5 scale. Base scores on observed behaviour in the period, not on reputation.",
+    "rating_scale": "1-5-likert",
+    "target_score": 4,
+    "aggregation": "weighted_mean",
+    "max_depth": 2,
+    "parameters": [
+      {"code": "C", "name": "Communication", "weight": 1, "is_critical": true, "min_acceptable_score": 3, "criteria": [
+        {"score_min": 5, "score_max": 5, "qualitative": "Information reaches the right people before it is needed; decisions are written down.", "quantitative": "0 incidents caused by missed communication"},
+        {"score_min": 4, "score_max": 4, "qualitative": "Communication is timely with occasional gaps.", "quantitative": "1 incident"},
+        {"score_min": 3, "score_max": 3, "qualitative": "Key information flows but late.", "quantitative": "2–3 incidents"},
+        {"score_min": 2, "score_max": 2, "qualitative": "Frequent surprises.", "quantitative": "4–5 incidents"},
+        {"score_min": 1, "score_max": 1, "qualitative": "Silos.", "quantitative": "> 5 incidents"}
+      ]},
+      {"code": "O", "name": "Ownership", "weight": 1, "is_critical": true, "min_acceptable_score": 3, "criteria": [
+        {"score_min": 5, "score_max": 5, "qualitative": "Every task has a named owner who answers for it; misses are owned publicly.", "quantitative": "100% of tasks owned"},
+        {"score_min": 4, "score_max": 4, "qualitative": "Clear ownership, occasional drift.", "quantitative": ">= 90% owned"},
+        {"score_min": 3, "score_max": 3, "qualitative": "Ownership assigned but not always taken.", "quantitative": "75–89%"},
+        {"score_min": 2, "score_max": 2, "qualitative": "Work falls between people.", "quantitative": "50–74%"},
+        {"score_min": 1, "score_max": 1, "qualitative": "Nobody owns outcomes.", "quantitative": "< 50%"}
+      ]},
+      {"code": "P", "name": "Delivery predictability", "weight": 1,
+       "metrics": [{"code": "commitments_met_pct", "name": "Sprint commitments met", "unit": "%", "data_type": "percent",
+         "thresholds": [
+          {"min_value": 90, "max_value": null, "score": 5},
+          {"min_value": 80, "max_value": 90, "score": 4},
+          {"min_value": 65, "max_value": 80, "score": 3},
+          {"min_value": 50, "max_value": 65, "score": 2},
+          {"min_value": null, "max_value": 50, "score": 1}
+         ]}],
+       "criteria": [
+        {"score_min": 5, "score_max": 5, "qualitative": "Commits and delivers.", "quantitative": ">= 90%"},
+        {"score_min": 4, "score_max": 4, "qualitative": "Reliable.", "quantitative": "80–89%"},
+        {"score_min": 3, "score_max": 3, "qualitative": "Somewhat reliable.", "quantitative": "65–79%"},
+        {"score_min": 2, "score_max": 2, "qualitative": "Unreliable.", "quantitative": "50–64%"},
+        {"score_min": 1, "score_max": 1, "qualitative": "Commitments are not meaningful.", "quantitative": "< 50%"}
+      ]},
+      {"code": "K", "name": "Knowledge sharing", "weight": 1, "criteria": [
+        {"score_min": 5, "score_max": 5, "qualitative": "No single points of failure; documentation current.", "quantitative": "Bus factor >= 2 for every component"},
+        {"score_min": 4, "score_max": 4, "qualitative": "Most knowledge shared.", "quantitative": "1 component with bus factor 1"},
+        {"score_min": 3, "score_max": 3, "qualitative": "Some silos.", "quantitative": "2–3 components"},
+        {"score_min": 2, "score_max": 2, "qualitative": "Many silos.", "quantitative": "> 3 components"},
+        {"score_min": 1, "score_max": 1, "qualitative": "Knowledge hoarded.", "quantitative": "Most components"}
+      ]},
+      {"code": "S", "name": "Safety to report reds", "weight": 1, "criteria": [
+        {"score_min": 5, "score_max": 5, "qualitative": "Ambers and reds are raised early and treated as information.", "quantitative": "Issues raised >= 3 days before deadline"},
+        {"score_min": 4, "score_max": 4, "qualitative": "Mostly early.", "quantitative": "1–2 days before"},
+        {"score_min": 3, "score_max": 3, "qualitative": "Raised at the deadline.", "quantitative": "On the day"},
+        {"score_min": 2, "score_max": 2, "qualitative": "Raised after the deadline.", "quantitative": "After"},
+        {"score_min": 1, "score_max": 1, "qualitative": "All-green board with poor outcomes.", "quantitative": "Hidden"}
+      ]}
+    ]
+  }
+}

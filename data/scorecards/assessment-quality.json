@@ -1,0 +1,373 @@
+{
+  "code": "assessment-quality",
+  "name": "Assessment Quality",
+  "subject_type": "assessment",
+  "owner": "Prabhav558",
+  "tags": ["pilot", "learning", "reference"],
+  "is_template": true,
+  "version": {
+    "purpose": "Ensure every assessment (test, quiz, assignment or practical task) used to evaluate trainees measures the intended learning objectives fairly, accurately and consistently before it is issued.",
+    "scope": "The assessment paper or brief, its item bank, answer key / model solutions, marking scheme, instructions and logistics. Excludes the delivery platform and the trainees' answers.",
+    "objective": "An assessment is fit to issue when it scores 8 or above overall, with no factual errors in items or keys and no ambiguity that would let two competent trainees read a question differently.",
+    "guidance": "Score each leaf from the rating matrix, not from overall impression. Count items where the quantitative guideline asks for a count or percentage. When evidence for the higher band is missing, choose the lower band. Metric leaves are scored from the measured values; override only with a written reason.",
+    "rating_scale": "0-10-rag",
+    "target_score": 8,
+    "aggregation": "weighted_mean",
+    "max_depth": 4,
+    "qtc_enabled": false,
+    "parameters": [
+      {
+        "code": "1",
+        "name": "Purpose & Alignment",
+        "description": "Does the assessment know what it is measuring, and does it measure exactly that?",
+        "weight": 20,
+        "children": [
+          {
+            "code": "1.1",
+            "name": "Objective clarity",
+            "description": "The learning objectives being assessed are stated explicitly and are measurable.",
+            "weight": 40,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Every objective is stated, measurable and uses an observable action verb; the audience and level are explicit.", "quantitative": "100% of objectives use a measurable verb; 0 vague objectives ('understand', 'know')"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Objectives are explicit and measurable with one trivial wording issue.", "quantitative": ">= 95% measurable; at most 1 minor wording issue"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Objectives are explicit and mostly measurable; a reader knows what is being assessed.", "quantitative": ">= 85% measurable; at most 1 vague objective"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Objectives are listed but some are generic; intent is still recoverable.", "quantitative": "70–84% measurable"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Objectives exist only as topic headings; measurability is weak.", "quantitative": "50–69% measurable"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Objectives must be inferred from the items; several readings possible.", "quantitative": "No explicit objective list; intent inferable for most items"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Objectives are unclear or contradict the items.", "quantitative": "No objective list; intent unclear for over a third of items"},
+              {"score_min": 0, "score_max": 3, "qualitative": "No evident purpose; it is not possible to tell what is being assessed.", "quantitative": "No objectives and no recoverable intent"}
+            ]
+          },
+          {
+            "code": "1.2",
+            "name": "Objective coverage",
+            "description": "Every stated objective is assessed by at least one item, in proportion to its importance.",
+            "weight": 60,
+            "metrics": [
+              {
+                "code": "objectives_covered_pct",
+                "name": "Objectives covered by at least one item",
+                "unit": "%",
+                "data_type": "percent",
+                "description": "Objectives mapped to one or more items / total objectives × 100",
+                "thresholds": [
+                  {"min_value": 100, "max_value": null, "score": 10},
+                  {"min_value": 95, "max_value": 100, "score": 9},
+                  {"min_value": 90, "max_value": 95, "score": 8},
+                  {"min_value": 80, "max_value": 90, "score": 7},
+                  {"min_value": 70, "max_value": 80, "score": 6},
+                  {"min_value": 60, "max_value": 70, "score": 5},
+                  {"min_value": 50, "max_value": 60, "score": 4},
+                  {"min_value": null, "max_value": 50, "score": 2}
+                ]
+              }
+            ],
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Every objective is assessed, and item weighting matches objective importance.", "quantitative": "100% of objectives covered"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Near-complete coverage with sensible weighting.", "quantitative": "95–99% covered"},
+              {"score_min": 8, "score_max": 8, "qualitative": "All key objectives covered; a minor objective is thin.", "quantitative": "90–94% covered"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Most objectives covered; one notable objective missing.", "quantitative": "80–89% covered"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Coverage is uneven; several objectives untested.", "quantitative": "70–79% covered"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Large gaps between what is taught and what is tested.", "quantitative": "60–69% covered"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Assessment tests a different subset from the stated objectives.", "quantitative": "50–59% covered"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Assessment is largely unrelated to the objectives.", "quantitative": "< 50% covered"}
+            ]
+          }
+        ]
+      },
+      {
+        "code": "2",
+        "name": "Item Quality",
+        "description": "The individual questions / tasks are clear, correct and appropriately demanding.",
+        "weight": 35,
+        "children": [
+          {
+            "code": "2.1",
+            "name": "Clarity & unambiguity",
+            "description": "Each item has exactly one reasonable reading.",
+            "weight": 30,
+            "is_critical": true,
+            "min_acceptable_score": 7,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Every item has exactly one reasonable reading; independent reviewers interpret all items identically.", "quantitative": "0 ambiguous items; 0 undefined terms"},
+              {"score_min": 9, "score_max": 9, "qualitative": "All items clear; one cosmetic wording issue.", "quantitative": "0 ambiguous items; 1 minor wording issue"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Items are clear; a small number need minor clarification that would not change answers.", "quantitative": "<= 2 items need minor clarification; none change the expected answer"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Mostly clear; one item could be answered differently by a careful reader.", "quantitative": "1 genuinely ambiguous item"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Several items are open to interpretation.", "quantitative": "2–3 ambiguous items"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Ambiguity is common; trainees would need to ask for clarification.", "quantitative": "4–5 ambiguous items or > 10% of items"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Frequent vague language; reviewers disagree on intent.", "quantitative": "> 20% of items ambiguous"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Items are statements of topic rather than questions; no clear task.", "quantitative": "> 40% of items ambiguous"}
+            ]
+          },
+          {
+            "code": "2.2",
+            "name": "Technical correctness",
+            "description": "Items, options, data and expected answers are factually and technically correct.",
+            "weight": 40,
+            "is_critical": true,
+            "min_acceptable_score": 8,
+            "metrics": [
+              {
+                "code": "errors_found",
+                "name": "Factual / technical errors in items or keys",
+                "unit": "errors",
+                "data_type": "count",
+                "description": "Count of items or answer-key entries containing a factual or technical error",
+                "thresholds": [
+                  {"min_value": 0, "max_value": 1, "score": 10},
+                  {"min_value": 1, "max_value": 2, "score": 7},
+                  {"min_value": 2, "max_value": 3, "score": 5},
+                  {"min_value": 3, "max_value": null, "score": 2}
+                ]
+              }
+            ],
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "No errors in any item, option, data set or answer.", "quantitative": "0 errors"},
+              {"score_min": 8, "score_max": 9, "qualitative": "No errors, but one item relies on a version-specific or disputed fact without stating it.", "quantitative": "0 errors; 1 unstated assumption"},
+              {"score_min": 7, "score_max": 7, "qualitative": "One error that affects a single item.", "quantitative": "1 error"},
+              {"score_min": 6, "score_max": 6, "qualitative": "One error that affects scoring of more than one item.", "quantitative": "1 error with knock-on effect"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Two errors; trust in the assessment is reduced.", "quantitative": "2 errors"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Errors in the answer key would mis-mark correct trainees.", "quantitative": "2 errors, at least 1 in the key"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Multiple errors; the assessment cannot be used.", "quantitative": ">= 3 errors"}
+            ]
+          },
+          {
+            "code": "2.3",
+            "name": "Cognitive rigour",
+            "description": "The assessment demands the right depth of thinking for the level of the trainees.",
+            "weight": 30,
+            "children": [
+              {
+                "code": "2.3.1",
+                "name": "Bloom's level distribution",
+                "description": "Balance between recall and higher-order (apply, analyse, evaluate, create) items.",
+                "weight": 60,
+                "children": [
+                  {
+                    "code": "2.3.1.1",
+                    "name": "Higher-order item share",
+                    "description": "Share of marks on items at Bloom's 'Apply' level or above.",
+                    "weight": 60,
+                    "metrics": [
+                      {
+                        "code": "higher_order_pct",
+                        "name": "Marks on apply-or-above items",
+                        "unit": "%",
+                        "data_type": "percent",
+                        "thresholds": [
+                          {"min_value": 50, "max_value": null, "score": 10},
+                          {"min_value": 40, "max_value": 50, "score": 9},
+                          {"min_value": 30, "max_value": 40, "score": 8},
+                          {"min_value": 25, "max_value": 30, "score": 7},
+                          {"min_value": 20, "max_value": 25, "score": 6},
+                          {"min_value": 15, "max_value": 20, "score": 5},
+                          {"min_value": 10, "max_value": 15, "score": 4},
+                          {"min_value": null, "max_value": 10, "score": 2}
+                        ]
+                      }
+                    ],
+                    "criteria": [
+                      {"score_min": 10, "score_max": 10, "qualitative": "Half or more of the marks require applying, analysing or creating.", "quantitative": ">= 50% of marks"},
+                      {"score_min": 9, "score_max": 9, "qualitative": "Strong emphasis on application and analysis.", "quantitative": "40–49%"},
+                      {"score_min": 8, "score_max": 8, "qualitative": "A healthy share of higher-order items.", "quantitative": "30–39%"},
+                      {"score_min": 7, "score_max": 7, "qualitative": "Some higher-order items; recall dominates.", "quantitative": "25–29%"},
+                      {"score_min": 6, "score_max": 6, "qualitative": "Higher-order items are token.", "quantitative": "20–24%"},
+                      {"score_min": 5, "score_max": 5, "qualitative": "Very little application required.", "quantitative": "15–19%"},
+                      {"score_min": 4, "score_max": 4, "qualitative": "Almost entirely recall.", "quantitative": "10–14%"},
+                      {"score_min": 0, "score_max": 3, "qualitative": "Pure memorisation test.", "quantitative": "< 10%"}
+                    ]
+                  },
+                  {
+                    "code": "2.3.1.2",
+                    "name": "Recall-only item share",
+                    "description": "Share of marks on items that only require remembering a fact (lower is better).",
+                    "weight": 40,
+                    "metrics": [
+                      {
+                        "code": "recall_only_pct",
+                        "name": "Marks on recall-only items",
+                        "unit": "%",
+                        "data_type": "percent",
+                        "thresholds": [
+                          {"min_value": null, "max_value": 30, "score": 10},
+                          {"min_value": 30, "max_value": 40, "score": 9},
+                          {"min_value": 40, "max_value": 50, "score": 8},
+                          {"min_value": 50, "max_value": 60, "score": 7},
+                          {"min_value": 60, "max_value": 70, "score": 6},
+                          {"min_value": 70, "max_value": 80, "score": 5},
+                          {"min_value": 80, "max_value": 90, "score": 4},
+                          {"min_value": 90, "max_value": null, "score": 2}
+                        ]
+                      }
+                    ],
+                    "criteria": [
+                      {"score_min": 10, "score_max": 10, "qualitative": "Recall is used only where it is a prerequisite.", "quantitative": "< 30% of marks"},
+                      {"score_min": 9, "score_max": 9, "qualitative": "Recall is limited and purposeful.", "quantitative": "30–39%"},
+                      {"score_min": 8, "score_max": 8, "qualitative": "Recall is present but balanced.", "quantitative": "40–49%"},
+                      {"score_min": 7, "score_max": 7, "qualitative": "Recall is the majority of marks.", "quantitative": "50–59%"},
+                      {"score_min": 6, "score_max": 6, "qualitative": "Recall dominates.", "quantitative": "60–69%"},
+                      {"score_min": 5, "score_max": 5, "qualitative": "Recall heavily dominates.", "quantitative": "70–79%"},
+                      {"score_min": 4, "score_max": 4, "qualitative": "Nearly all recall.", "quantitative": "80–89%"},
+                      {"score_min": 0, "score_max": 3, "qualitative": "Recall only.", "quantitative": ">= 90%"}
+                    ]
+                  }
+                ]
+              },
+              {
+                "code": "2.3.2",
+                "name": "Difficulty calibration",
+                "description": "Difficulty matches the trainees' level and discriminates between strong and weak performance.",
+                "weight": 40,
+                "criteria": [
+                  {"score_min": 10, "score_max": 10, "qualitative": "Deliberate difficulty ladder (easy → stretch) matched to the cohort; every item discriminates.", "quantitative": "Difficulty tagged for 100% of items; spread across >= 3 levels"},
+                  {"score_min": 9, "score_max": 9, "qualitative": "Well-calibrated ladder; one item slightly off-level.", "quantitative": "Tagged for >= 90% of items; >= 3 levels"},
+                  {"score_min": 8, "score_max": 8, "qualitative": "Appropriate for the cohort with a clear easy-to-hard progression.", "quantitative": "Tagged for >= 75%; >= 2 levels"},
+                  {"score_min": 7, "score_max": 7, "qualitative": "Generally appropriate; progression is implicit.", "quantitative": "Untagged, but reviewer finds >= 2 levels"},
+                  {"score_min": 6, "score_max": 6, "qualitative": "Noticeably too easy or too hard in places.", "quantitative": "> 20% of items off-level"},
+                  {"score_min": 5, "score_max": 5, "qualitative": "Mostly one difficulty level; little discrimination.", "quantitative": "Single level for > 80% of items"},
+                  {"score_min": 4, "score_max": 4, "qualitative": "Mismatched to the cohort; most trainees would score similarly.", "quantitative": "> 40% of items off-level"},
+                  {"score_min": 0, "score_max": 3, "qualitative": "Difficulty bears no relation to the cohort.", "quantitative": "> 60% of items off-level"}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "code": "3",
+        "name": "Marking Scheme & Answer Key",
+        "description": "Any two markers would give the same marks to the same response.",
+        "weight": 20,
+        "children": [
+          {
+            "code": "3.1",
+            "name": "Answer-key completeness",
+            "description": "Every item has an answer, model solution or acceptance criteria.",
+            "weight": 50,
+            "metrics": [
+              {
+                "code": "items_with_key_pct",
+                "name": "Items with an answer / model solution",
+                "unit": "%",
+                "data_type": "percent",
+                "thresholds": [
+                  {"min_value": 100, "max_value": null, "score": 10},
+                  {"min_value": 95, "max_value": 100, "score": 8},
+                  {"min_value": 90, "max_value": 95, "score": 7},
+                  {"min_value": 80, "max_value": 90, "score": 6},
+                  {"min_value": 70, "max_value": 80, "score": 5},
+                  {"min_value": 60, "max_value": 70, "score": 4},
+                  {"min_value": null, "max_value": 60, "score": 2}
+                ]
+              }
+            ],
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Every item has a complete answer or model solution, including acceptable alternatives.", "quantitative": "100% of items"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Every item keyed; alternatives listed for most open items.", "quantitative": "100% keyed; alternatives for >= 80% of open items"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Nearly every item keyed.", "quantitative": "95–99%"},
+              {"score_min": 7, "score_max": 7, "qualitative": "A few items lack keys.", "quantitative": "90–94%"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Several items lack keys.", "quantitative": "80–89%"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Key is partial.", "quantitative": "70–79%"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Key is largely missing.", "quantitative": "60–69%"},
+              {"score_min": 0, "score_max": 3, "qualitative": "No usable key.", "quantitative": "< 60%"}
+            ]
+          },
+          {
+            "code": "3.2",
+            "name": "Marking objectivity",
+            "description": "Mark allocation, partial credit and rubric descriptors leave no room for marker interpretation.",
+            "weight": 50,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Rubric specifies marks per step, partial credit and common wrong answers; any two markers agree.", "quantitative": "Marks per step for 100% of multi-step items; worked marking example provided"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Detailed rubric with partial-credit rules; no worked example.", "quantitative": "Marks per step for >= 90% of multi-step items"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Clear mark allocation and partial-credit guidance for most items.", "quantitative": ">= 75% of multi-step items"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Marks allocated per item; partial credit left to judgement.", "quantitative": "Marks per item only"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Marks allocated per section only.", "quantitative": "Section totals only"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Total marks only; markers would diverge.", "quantitative": "Paper total only"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Marking is implied, not stated.", "quantitative": "No mark allocation"},
+              {"score_min": 0, "score_max": 3, "qualitative": "No marking scheme.", "quantitative": "Absent"}
+            ]
+          }
+        ]
+      },
+      {
+        "code": "4",
+        "name": "Fairness & Accessibility",
+        "description": "Every trainee has an equal chance to demonstrate competence. Rolled up by MINIMUM: one unfair aspect makes the whole area unfair.",
+        "weight": 15,
+        "aggregation": "minimum",
+        "children": [
+          {
+            "code": "4.1",
+            "name": "Bias-free & inclusive language",
+            "weight": 1,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Neutral, inclusive language and contexts throughout; reviewed for cultural assumptions.", "quantitative": "0 items with biased or culture-specific context"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Inclusive throughout; one context could be more universal.", "quantitative": "1 item with a mildly culture-specific context"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Neutral language; a couple of contexts assume local knowledge.", "quantitative": "<= 2 items"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Some contexts advantage a subgroup.", "quantitative": "3 items"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Recurring assumptions about background knowledge.", "quantitative": "4–5 items"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Noticeable bias affecting outcomes.", "quantitative": "> 5 items"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Language that could offend or exclude.", "quantitative": ">= 1 item with exclusionary language"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Discriminatory content.", "quantitative": "Any discriminatory item"}
+            ]
+          },
+          {
+            "code": "4.2",
+            "name": "Instructions, timing & logistics",
+            "weight": 1,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Instructions, allowed resources, time and submission format are explicit; timing validated by a dry run.", "quantitative": "All 4 elements stated; dry-run time within ±10%"},
+              {"score_min": 9, "score_max": 9, "qualitative": "All elements explicit; timing estimated, not validated.", "quantitative": "All 4 elements stated"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Instructions clear; one minor element implicit.", "quantitative": "3 of 4 stated, missing one is minor"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Instructions adequate; time allowance is questionable.", "quantitative": "3 of 4 stated"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Trainees would need to ask how to proceed.", "quantitative": "2 of 4 stated"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Time is clearly insufficient or instructions contradictory.", "quantitative": "Timing off by > 30%"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Instructions largely missing.", "quantitative": "1 of 4 stated"},
+              {"score_min": 0, "score_max": 3, "qualitative": "No instructions.", "quantitative": "0 of 4 stated"}
+            ]
+          },
+          {
+            "code": "4.3",
+            "name": "Accessibility accommodations",
+            "description": "Optional: mark N/A when the cohort has no declared accessibility needs.",
+            "weight": 1,
+            "is_optional": true,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Accessible formats and accommodations are built in for all declared needs.", "quantitative": "100% of declared needs accommodated"},
+              {"score_min": 8, "score_max": 9, "qualitative": "Accommodations available on request with a defined process.", "quantitative": ">= 90% of declared needs accommodated"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Most needs accommodated informally.", "quantitative": ">= 75%"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Some needs accommodated.", "quantitative": "50–74%"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Few needs accommodated.", "quantitative": "25–49%"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Accommodations only after escalation.", "quantitative": "< 25%"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Declared needs ignored.", "quantitative": "0%"}
+            ]
+          }
+        ]
+      },
+      {
+        "code": "5",
+        "name": "Structure & Presentation",
+        "weight": 10,
+        "children": [
+          {
+            "code": "5.1",
+            "name": "Organisation & formatting",
+            "description": "Logical ordering, consistent numbering, readable layout, marks shown per item.",
+            "weight": 1,
+            "criteria": [
+              {"score_min": 10, "score_max": 10, "qualitative": "Sections ordered logically, consistent numbering and formatting, marks shown per item, no typos.", "quantitative": "0 formatting defects; 0 typos"},
+              {"score_min": 9, "score_max": 9, "qualitative": "Professional layout with one cosmetic defect.", "quantitative": "1 defect"},
+              {"score_min": 8, "score_max": 8, "qualitative": "Clean and readable; a few cosmetic defects.", "quantitative": "2–3 defects"},
+              {"score_min": 7, "score_max": 7, "qualitative": "Readable; inconsistent numbering or formatting.", "quantitative": "4–6 defects"},
+              {"score_min": 6, "score_max": 6, "qualitative": "Disorganised in places; trainees may miss items.", "quantitative": "7–10 defects"},
+              {"score_min": 5, "score_max": 5, "qualitative": "Hard to follow.", "quantitative": "> 10 defects"},
+              {"score_min": 4, "score_max": 4, "qualitative": "Confusing structure; items out of order.", "quantitative": "Items misnumbered or missing"},
+              {"score_min": 0, "score_max": 3, "qualitative": "Unusable layout.", "quantitative": "Cannot be issued as-is"}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
