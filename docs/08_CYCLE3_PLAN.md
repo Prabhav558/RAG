@@ -1,5 +1,9 @@
 # Cycle 3 — Business Behaviour, Specification & Testing (plan)
 
+> **Status: executed.** Specification `10_CYCLE3_BEHAVIOUR_SPEC.md`, refined PRD `11_REFINED_PRD.md`, results
+> `13_CYCLE3_REPORT.md`. Delivered: workflows 1, 2, 3, 4 and 5 below (subject roll-up across task → milestone →
+> project, multi-judge validation with adjudication, review workflow, red diagnosis).
+
 Goal: make complex behaviour explicit, produce the refined PRD and an acceptance suite (DDD framework §9).
 
 ## 9.1 Workflows to model

@@ -23,6 +23,15 @@ erDiagram
     EVALUATION ||--o{ METRIC_VALUE : "measures"
     METRIC ||--o{ METRIC_VALUE : "valued as"
     EVALUATION ||--o{ EVALUATION_DOCUMENT : "input"
+    SCORECARD_VERSION ||--o{ VERSION_REVIEW : "governance trail"
+    SUBJECT_TYPE ||--o{ SUBJECT : "types"
+    SUBJECT ||--o{ SUBJECT : "parent of"
+    SUBJECT ||--o{ SUBMISSION : "attempts"
+    SCORECARD_VERSION ||--o{ SUBMISSION : "gated by"
+    SUBMISSION ||--o{ SUBMISSION : "previous attempt"
+    SUBMISSION ||--o{ EVALUATION : "self + judges"
+    SUBMISSION ||--o{ DIAGNOSIS : "red diagnosed"
+    AUDIT_EVENT }o--|| SUBMISSION : "records transitions of (any entity)"
 ```
 
 ## Key design decisions
@@ -58,4 +67,8 @@ erDiagram
 | Structural errors blocked at draft save (inverted ranges, duplicate metric codes) | Cycle 2 corruption: DB constraints were stricter than save validation (500s) |
 | IntegrityError → 409 E017 | Safety net so a missed rule can never surface as a 500 |
 
-**Open:** no migration tool for this database yet (Alembic needed before any shared deployment).
+| Cycle 3: `subject`, `submission`, `version_review`, `diagnosis`, `audit_event`; version gate settings; `in_review` status | Business behaviour (`10_CYCLE3_BEHAVIOUR_SPEC.md`) |
+| `gate_failure_count`, analytics indexes | Tuning: JSON is not portably aggregatable; analytics scans |
+| `row_version` on submission / scorecard_version / evaluation | Tuning: race on concurrent workflow actions |
+
+Schema changes are made by **Alembic** (`backend/migrations`): `0001_cycle2` (frozen Cycle 2 schema) → `0002_cycle3`.

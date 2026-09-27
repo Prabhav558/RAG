@@ -164,3 +164,62 @@ criteria on parents → W104, ignored).
 |---|---|---|
 | filename, media_type | text | txt, md, csv, json, docx, pdf. ≤ 20 MB upload, ≤ 400k extracted chars (E015) |
 | content_text | text | Extracted text passed to the LLM judge |
+
+
+---
+
+## Cycle 3 entities
+
+### scorecard (added) / scorecard_version (added)
+| Field | Type | Rules |
+|---|---|---|
+| scorecard.requires_review | bool | If true, a version is published only by reviewer approval (S001 on direct publish) |
+| version.status | enum | now `draft → in_review → published → retired`; `in_review` is frozen |
+| version.required_judges | int 1–5 | Completed judge evaluations needed before `decide` (S004) |
+| version.judge_tolerance_pct | float 0–100 | Max spread of judge scores (% of scale) before adjudication |
+| version.require_self_appraisal | bool | Completed self-appraisal needed before `submit` (S005) |
+| version.is_foundational | bool | A redo in a RED band stops the project (S007) |
+| version.row_version / evaluation.row_version / submission.row_version | int | Optimistic concurrency; conflict → 409 S012 |
+| evaluation.gate_failure_count | int | Mirrors `len(gate_failures)` for SQL aggregation |
+| evaluation.subject_id / submission_id | FK, nullable | Set when the evaluation belongs to a submission |
+
+### version_review
+action (`submitted`, `approved`, `changes_requested`, `published`, `retired`), actor, comment, at. Append-only.
+
+### subject
+| Field | Type | Rules |
+|---|---|---|
+| code | varchar(60) U | Generated from the name if not given; explicit duplicates → E011 |
+| name, owner | text | Required |
+| subject_type_id | FK | Any type; type order is not enforced (the system is generic) |
+| parent_id | FK self, N | No cycles; depth ≤ 6 (S008) |
+| due_at, budget | datetime / float ≥ 0, N | Required before starting a QTC submission (S006) |
+
+### submission
+| Field | Type | Rules |
+|---|---|---|
+| subject_id, version_id | FK | Version must be published at start (S010); one active submission per subject and scorecard |
+| attempt_no, previous_id | int, FK self | Attempts are sequential per subject and scorecard |
+| owner | text | Copied from the subject; only the owner submits or withdraws |
+| status | enum | `open, in_review, adjudication, decided, withdrawn, cancelled` (transition table in `workflow.py`) |
+| decision | enum N | `passed` or `redo`, set only by decide/adjudicate |
+| official_score, official_band, official_rag | computed | Mean of completed judge scores; band of that mean |
+| judge_spread_pct | computed | max − min judge score, % of scale |
+| gate_failures | JSON | Union of the judges' gate failures |
+| time_met, cost_met, qtc_green | computed | submitted_at ≤ subject.due_at; cumulative actual_cost ≤ budget |
+| actual_cost | float ≥ 0 N | Cost of this attempt |
+| adjudicated, decided_by, decision_reason | | Reason is mandatory for adjudication and cancellation |
+| blocks_project | bool | Foundational stop rule |
+
+### diagnosis
+person, cause (`skill|aptitude|will|allocation`), action (`train|reassign|discuss|rescope|none`), notes,
+submission_id N, recorded_by (≠ person, S003), recorded_at.
+
+### audit_event
+entity, entity_id, action, from_state, to_state, actor, details (JSON), at. Written for every state transition.
+
+### S-codes (workflow)
+S001 action not allowed in state · S002 actor required · S003 separation of duties · S004 not enough judges ·
+S005 self-appraisal required · S006 QTC inputs missing · S007 project stopped by foundational red · S008 invalid
+subject hierarchy · S009 submission not accepting this evaluation · S010 version not published · S011 private
+self-appraisal · S012 concurrent change (reload).

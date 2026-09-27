@@ -59,17 +59,18 @@ def published(db, code) -> ScorecardVersion:
                      .where(Scorecard.code == code, ScorecardVersion.status == "published"))
 
 
-def judge_submission(db, sub, arch, rng, shift, lenient_judge=False):
+def judge_submission(db, sub, arch, rng, shift, lenient_judge=False, per_judge_arch=None):
     for i in range(sub.version.required_judges):
         judge = JUDGES[(sub.id + i) % len(JUDGES)]
         ev = flow.add_evaluation(db, sub, flow.SubmissionEvaluationIn(evaluator_type="human", evaluator_name=judge),
                                  judge)
-        fill_evaluation(db, ev, sub.version, arch, "llm" if (lenient_judge and i == 1) else "human", rng, shift,
+        a = per_judge_arch[i] if per_judge_arch else arch
+        fill_evaluation(db, ev, sub.version, a, "llm" if (lenient_judge and i == 1) else "human", rng, shift,
                         qtc_flags=False)
         svc.complete_evaluation(db, ev)
 
 
-def run_attempt(db, subject, version, owner, arch, rng, shift=0.0, stop_at=None):
+def run_attempt(db, subject, version, owner, arch, rng, shift=0.0, stop_at=None, per_judge_arch=None):
     sub = flow.start_submission(db, subject, flow.SubmissionIn(version_id=version.id,
                                                                input_text=f"[generated] {subject.name}"), owner)
     if version.require_self_appraisal or rng.random() < 0.5:
@@ -84,7 +85,7 @@ def run_attempt(db, subject, version, owner, arch, rng, shift=0.0, stop_at=None)
                                owner)
     if stop_at == "in_review":
         return sub
-    judge_submission(db, sub, arch, rng, shift, lenient_judge=rng.random() < 0.3)
+    judge_submission(db, sub, arch, rng, shift, lenient_judge=rng.random() < 0.3, per_judge_arch=per_judge_arch)
     flow.decide(db, sub, "PMO bot")
     if sub.status == "adjudication":
         verdict = "passed" if (sub.official_score or 0) >= version.target_score and not sub.gate_failures else "redo"
@@ -134,6 +135,18 @@ def main(argv=None) -> int:
                     milestone_passed &= sub.status == "decided" and sub.decision == "passed"
                 if milestone_passed and rng.random() < 0.8:  # a milestone is reviewed once its tasks passed
                     run_attempt(db, milestone, milestone_card, p_owner, archetype("solid"), rng)
+        # deterministic showcases, so every generated dataset demonstrates the two key Cycle 3 behaviours
+        hermes = next(r for r in flow.subject_forest(db) if r["name"] == "Hermes Onboarding")
+        exam = flow.create_subject(db, flow.SubjectIn(name="Hermes: Final exam paper", subject_type="task",
+                                                      owner="Farah", parent_id=hermes["id"]), "PMO")
+        run_attempt(db, exam, published(db, "assessment-quality"), "Farah", archetype("excellent"), rng,
+                    per_judge_arch=[archetype("excellent"), ("harsh", 0, 0.55, 0.03, False)])  # -> adjudication
+        zeus = next(r for r in flow.subject_forest(db) if r["name"] == "Zeus Analytics")
+        contract = flow.create_subject(db, flow.SubjectIn(name="Zeus: Data contract spec", subject_type="task",
+                                                          owner="Chen", parent_id=zeus["id"]), "PMO")
+        run_attempt(db, contract, published(db, "requirements-document"), "Chen", ("failing", 0, 0.3, 0.04, False),
+                    rng)  # dark red on a foundational scorecard -> stops Zeus
+
         # extra history for Eve so the attention list has something real to show
         for i in range(3):
             s = flow.create_subject(db, flow.SubjectIn(name=f"Eve: support ticket write-up {i + 1}", subject_type="task",

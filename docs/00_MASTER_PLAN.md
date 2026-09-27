@@ -92,12 +92,19 @@ one. Ranges allow both; the validator guarantees the whole scale is covered exac
 Buggy/invalid datasets with injected-defect traceability, legacy spreadsheet scorecard migration (CSV → versioned
 scorecard), 1–5 → 0–10 scale mapping, reconciliation report, defect log.
 
-### Cycle 3 — Business Behaviour, Specification & Testing → `08_CYCLE3_PLAN.md`
+### Cycle 3 — Business Behaviour, Specification & Testing ✅ → spec `10_CYCLE3_BEHAVIOUR_SPEC.md`, PRD `11_REFINED_PRD.md`, report `13_CYCLE3_REPORT.md`
 Formal state machines (scorecard version + evaluation), resubmission / redo loop, reviewer workflow (self → judge →
 gate), subject hierarchy roll-ups (task → milestone → project), refined PRD, business-readable acceptance suite.
 
-### Tuning
-Judge reliability (LLM vs expert agreement), performance at ~2,400 evaluations/day, NFRs.
+### Tuning ✅ → `tuning/TUNING_REPORT.md`
+Measured against the NFRs on SQLite and Postgres; analytics rewritten to SQL; race condition fixed; Alembic
+migrations; Docker and CI. Judge reliability is monitored by the agreement and dispute analytics.
+
+## Status: Phase 1 complete
+All framework steps are delivered: Initial Product Scope → Cycle 1 → Cycle 2 → Cycle 3 → Refined PRD →
+comprehensive verification → tuning. Architecture: `12_ARCHITECTURE.md`. User guide: `USER_GUIDE.md`. Open
+business decisions: `11_REFINED_PRD.md` §6. Phase 2 (identity, security and governance, domain-first modelling) is
+the next step by the framework's own design.
 
 ---
 

@@ -1,83 +1,87 @@
 # Scorecard Studio
 
-A generic **Scorecard Creation & Rating System**: Google Forms / SurveyMonkey for scorecards.
+A generic **Scorecard Creation & Rating System**: Google Forms / SurveyMonkey for scorecards, with a quality gate.
 
-- **Create** a scorecard for anything (tasks, projects, milestones, documents, assessments, teams, individuals,
-  products, and any subject type you add): purpose, scope, objective, KPIs in a hierarchy of up to 4+ levels,
-  weights, qualitative and quantitative rating matrix, metrics with thresholds, target, critical gates, QTC.
-- **Use** it: provide text, a document or metric data, and rate it manually, as a private self-appraisal, or with
-  an LLM judge. The deterministic engine rolls up weighted and minimum scores, applies bands (never rounding up),
-  the target and critical gates, and QTC. It shows the reasoning behind every score.
-- **Import** legacy spreadsheet scorecards and their historical ratings (xlsx/csv) with a dry-run preview,
-  row-by-row outcomes and reconciliation of legacy totals.
-- **Learn**: analytics on honest RAG distribution, weakest parameters, first-time pass rate and LLM-vs-human
-  agreement.
+- **Create** a scorecard for anything: tasks, projects, milestones, documents, assessments, teams, individuals,
+  products, and any subject type you add. It has a purpose, scope and objective; KPIs in a hierarchy (4 levels by
+  default); relative weights; an anchored qualitative and quantitative rating matrix; metrics with thresholds;
+  targets; critical gates; QTC; and optional two-person review. Versions are immutable once published.
+- **Rate** text, documents or metric data manually, as a private self-appraisal, or with an LLM judge that
+  proposes scores for a human to confirm. A deterministic engine does all the maths and explains every score.
+  Bands never round up.
+- **Gate work**: projects → milestones → tasks go through self-appraisal → independent judges → decision, with
+  adjudication when judges disagree, redo attempts, a stop rule for dark-red foundational work, and an honest
+  roll-up (a project is green only when everything beneath it is green).
+- **Learn**: RAG distribution, weakest parameters, first-time pass rate, LLM-vs-human agreement, guideline
+  disputes, self-appraisal honesty, QTC misses; red diagnosis (skill, aptitude, will, allocation).
+- **Import** legacy spreadsheet scorecards and their history, with a preview and reconciliation of old totals.
 
-*Assessment Quality* is the pilot scorecard. It is **data** (`data/scorecards/assessment-quality.json`), not
-code, and it sits alongside five other scorecards for different subject types.
+*Assessment Quality* is the pilot scorecard. It is **data** (`data/scorecards/assessment-quality.json`), alongside
+five scorecards for other subject types on three rating scales.
 
-Built with the **Data-Driven Development Framework v1.1**. Start with [`docs/00_MASTER_PLAN.md`](docs/00_MASTER_PLAN.md).
+Built with the **Data-Driven Development Framework v1.1**, Phase 1 complete:
 
-| Doc | Framework step |
+| Step | Documents |
 |---|---|
-| [01 Initial Product Scope](docs/01_INITIAL_PRODUCT_SCOPE.md) | Initial Product Scope |
-| [02 Database design](docs/02_DATABASE_DESIGN.md) · [schema.sql](docs/schema.sql) | Cycle 1 §7.1 |
-| [03 Data dictionary](docs/03_DATA_DICTIONARY.md) | Cycle 1 §7.2 |
-| [04 Scenario catalogue](docs/04_SCENARIO_CATALOGUE.md) | Cycle 1 §7.3 |
-| [05 Scoring engine spec](docs/05_SCORING_ENGINE_SPEC.md) | Rating mechanism |
-| [06 Analytics & BI](docs/06_ANALYTICS_BI.md) | Cycle 1 §7.5 |
-| [07 Cycle 2 plan](docs/07_CYCLE2_PLAN.md) · [09 Cycle 2 report](docs/09_CYCLE2_REPORT.md) · [migration rules](docs/cycle2/MIGRATION_RULES.md) | Cycle 2 §8 |
-| [08 Cycle 3 plan](docs/08_CYCLE3_PLAN.md) | Next cycle |
-| [Pilot log](docs/PILOT_LOG.md) | Pilot measures & learning |
+| Plan & Initial Product Scope | [00 Master plan](docs/00_MASTER_PLAN.md) · [01 Initial Product Scope](docs/01_INITIAL_PRODUCT_SCOPE.md) |
+| Cycle 1: Data Foundation | [02 Database design](docs/02_DATABASE_DESIGN.md) · [schema.sql](docs/schema.sql) · [03 Data dictionary](docs/03_DATA_DICTIONARY.md) · [04 Scenario catalogue](docs/04_SCENARIO_CATALOGUE.md) · [05 Scoring engine](docs/05_SCORING_ENGINE_SPEC.md) · [06 Analytics](docs/06_ANALYTICS_BI.md) |
+| Cycle 2: Test & Migration | [07 Plan](docs/07_CYCLE2_PLAN.md) · [09 Report](docs/09_CYCLE2_REPORT.md) · [Migration rules](docs/cycle2/MIGRATION_RULES.md) · [Corruption report](docs/cycle2/corruption_report.md) |
+| Cycle 3: Behaviour, Specification & Testing | [08 Plan](docs/08_CYCLE3_PLAN.md) · [10 Behaviour spec](docs/10_CYCLE3_BEHAVIOUR_SPEC.md) · [11 Refined PRD](docs/11_REFINED_PRD.md) · [13 Report](docs/13_CYCLE3_REPORT.md) · [Acceptance scenarios](acceptance/) |
+| Tuning & architecture | [Tuning report](docs/tuning/TUNING_REPORT.md) · [12 Architecture](docs/12_ARCHITECTURE.md) |
+| Using it | [User guide](docs/USER_GUIDE.md) · [Pilot log](docs/PILOT_LOG.md) |
 
 ## Run it
 
 ```bash
-# backend
+# backend (Python 3.11+)
 cd backend
 pip install -r requirements.txt
-python ../data/tools/ingest.py --reset      # load + publish the 6 reference scorecards
-python ../data/tools/generate.py            # scenario-based evaluation data (optional)
-uvicorn app.main:app --reload               # http://localhost:8000/docs
+python ../data/tools/ingest.py --reset          # load + publish the 6 reference scorecards
+python ../data/tools/generate.py                # optional: scenario-based evaluation history
+python ../data/tools/generate_flow.py           # optional: projects going through the quality gate
+uvicorn app.main:app --reload                   # API docs at http://localhost:8000/docs
 
-# frontend (dev)
-cd ../frontend && npm install && npm run dev  # http://localhost:5173 (proxies /api)
-# or build once and let FastAPI serve it at http://localhost:8000
-npm run build
+# frontend
+cd ../frontend && npm install
+npm run dev                                     # http://localhost:5173 (proxies /api), or:
+npm run build                                   # then FastAPI serves the UI at http://localhost:8000
 ```
 
-The LLM judge uses the Anthropic API (`ANTHROPIC_API_KEY`; model via `SCORECARD_JUDGE_MODEL`, default
-`claude-opus-5`). Without credentials everything else works, and the judge endpoint returns a clear 503.
-The database defaults to `backend/scorecard.db`; override with `SCORECARD_DB_URL`.
+Shared deployment: `docker compose up` (app + Postgres 16; migrations run on start). Settings:
+`SCORECARD_DB_URL`, `ANTHROPIC_API_KEY` (optional LLM judge; model `SCORECARD_JUDGE_MODEL`, default
+`claude-opus-5`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
+Existing Cycle 1–2 pilot databases: `alembic stamp 0001_cycle2 && alembic upgrade head`.
 
-## Migrate legacy spreadsheets
-
-```bash
-python data/tools/migrate.py data/legacy/training-session-quality.xlsx           # preview + report
-python data/tools/migrate.py --all --commit                                       # all sample sources
-```
-Or use **Import legacy** in the UI. Reports land in `docs/cycle2/migration/`.
+> **Phase 1 has no login.** "Acting as" names are asserted, not authenticated, so the separation-of-duties rules
+> stop mistakes, not misuse. Keep it on a trusted network until Phase 2 adds identity.
 
 ## Test
 
 ```bash
-cd backend && python -m pytest -q          # 98 tests: scenarios, properties, corruption catalogue, migration
-python data/tools/corrupt.py               # corruption report -> docs/cycle2/corruption_report.md
-cd frontend && npm run typecheck
-BASE_URL=http://localhost:8000 npm run smoke   # UI smoke (needs a running app; CHROME=/path/to/chrome if needed)
+cd backend && python -m pytest -q      # 158 tests: scenarios, engine properties, 76-case corruption catalogue,
+                                       # migration + fuzzing, state x action matrix, 21 acceptance scenarios,
+                                       # concurrency, Alembic upgrades
+SCORECARD_TEST_DB_URL=postgresql+psycopg://user@host/db python -m pytest -q   # same suite on Postgres
+cd ../frontend && npm run typecheck
+BASE_URL=http://localhost:8000 npm run smoke                                 # browser smoke (running app)
+python data/tools/perf.py --multiplier 20                                    # performance vs NFRs
+python data/tools/migrate.py data/legacy/training-session-quality.xlsx      # legacy import preview
 ```
 
 ## Layout
 ```
-backend/app/scoring.py      pure scoring engine (roll-ups, metrics, bands, gates, QTC)
-backend/app/validation.py   coded scorecard validation (V/W codes)
-backend/app/services.py     definition <-> DB, evaluation lifecycle (E codes)
-backend/app/judge.py        LLM judge (structured output; proposes leaf scores only)
-backend/app/analytics.py    BI queries
-backend/app/migration.py    legacy spreadsheet migration (preview / commit / reconcile)
-data/scorecards/*.json      scorecard definitions (import/export format)
-data/tools/                 ingest, generator, corrupt (flawed data), make_legacy, migrate
-data/legacy/                sample legacy spreadsheets with injected problems
-frontend/src/pages/         Library, Builder, New evaluation, Evaluation, Evaluations, Analytics, Import
-frontend/e2e/smoke.mjs      UI smoke suite
+backend/app/scoring.py         pure scoring engine (roll-ups, metrics, bands, gates, QTC)
+backend/app/validation.py      coded scorecard validation
+backend/app/services.py        scorecards, versions, evaluations (single write path)
+backend/app/workflow.py        state-transition tables + audit trail
+backend/app/services_flow.py   review, subjects, submissions/gate, roll-up, diagnosis
+backend/app/judge.py           LLM judge (structured output; proposes leaf scores only)
+backend/app/analytics.py       SQL analytics
+backend/app/migration.py       legacy spreadsheet migration
+backend/migrations/            Alembic revisions
+acceptance/*.feature           business-readable acceptance scenarios
+data/scorecards/*.json         scorecard definitions (the pilot is one of them)
+data/tools/                    ingest, generators, corruption, legacy, migrate, perf, concurrency
+frontend/src/pages/            Library, Builder, Work, Subject, Submission, Evaluate, Evaluations,
+                               Analytics, Needs attention, Import
 ```

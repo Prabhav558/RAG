@@ -44,3 +44,18 @@ Measures required by DDD framework §13, recorded per iteration.
 | Human corrections to AI-generated artefacts | To be recorded at team review |
 
 Details and decisions: [`09_CYCLE2_REPORT.md`](09_CYCLE2_REPORT.md).
+
+## Iteration 3 — Cycle 3 and tuning
+
+| Measure | Value |
+|---|---|
+| Defects before vs after complex-workflow modelling | Cycle 1–2: 16 defects found by scenario data, corruption and migration. Cycle 3 + tuning: 9 more (#17–#25 in `13_CYCLE3_REPORT.md`), 3 of which only appear once behaviour is modelled (privacy, editor ownership, concurrent decisions) |
+| Schema changes triggered | Cycle 3 tables; gate settings; `gate_failure_count`; `row_version`; indexes, all delivered as Alembic migrations |
+| Test coverage of business rules | Every requirement in `11_REFINED_PRD.md` maps to a test or acceptance scenario; exhaustive state × action matrix |
+| Tests | 158 automated (SQLite and Postgres) + 21 acceptance scenarios (inside the 158) + 8-step browser smoke |
+| NFRs | All endpoints ≤ 140 ms p95 at ~14–16k evaluations; ~780k evaluations/day per worker |
+| Human corrections to AI-generated artefacts | To be recorded at team review |
+
+**Learning.** Data first found data defects early and cheaply, as the framework predicts. The expensive defects
+(privacy leak, self-editing, double decisions) appeared only when behaviour and concurrency were modelled
+explicitly, which supports the framework's choice to formalise complex behaviour in Cycle 3.
