@@ -375,3 +375,25 @@ def test_behaviour_analytics(f):
     assert b["disputed_parameters"][0]["mean_spread"] == 1.0
     audit = f.c.get(f"/api/audit?entity=submission&entity_id={sub['id']}").json()
     assert [e["action"] for e in audit][-1] == "decide"
+
+
+def test_services_compose_within_one_session(db):
+    """Found by the Cycle 3 generator: evaluations added in the same session must be visible to decide()."""
+    import json as _json
+
+    from app import services as svc
+    from app import services_flow as flow
+    from app.schemas import EvaluationUpdate, RatingIn, ScorecardDefinition
+
+    from .conftest import definition
+
+    sc = svc.create_scorecard(db, ScorecardDefinition.model_validate(_json.loads(_json.dumps(definition()))), publish=True)
+    v = sc.versions[0]
+    s = flow.create_subject(db, flow.SubjectIn(name="T", subject_type="task", owner="Alice"), "Lead")
+    sub = flow.start_submission(db, s, flow.SubmissionIn(version_id=v.id), "Alice")
+    flow.submit(db, sub, "Alice")
+    ev = flow.add_evaluation(db, sub, flow.SubmissionEvaluationIn(evaluator_type="human", evaluator_name="Bob"), "Bob")
+    leaves = [r.parameter_id for r in ev.results if r.is_leaf]
+    svc.apply_update(db, ev, EvaluationUpdate(ratings=[RatingIn(parameter_id=i, judged_score=9) for i in leaves]))
+    svc.complete_evaluation(db, ev)
+    assert flow.decide(db, sub, "Lead").decision == "passed"

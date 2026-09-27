@@ -15,6 +15,9 @@
     "aggregation": "weighted_mean",
     "max_depth": 4,
     "qtc_enabled": false,
+    "required_judges": 2,
+    "judge_tolerance_pct": 15,
+    "require_self_appraisal": true,
     "parameters": [
       {
         "code": "1",

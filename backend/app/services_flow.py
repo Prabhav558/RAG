@@ -380,7 +380,7 @@ def add_evaluation(db: Session, sub: Submission, data: SubmissionEvaluationIn, a
                          evaluator_name=name[:120], attempt_no=sub.attempt_no),
         commit=False, allow_unpublished=True,
     )
-    ev.submission_id, ev.subject_id = sub.id, sub.subject_id
+    ev.submission, ev.subject_id = sub, sub.subject_id  # via the relationship, so sub.evaluations stays current
     db.flush()
     wf.audit(db, wf.SUBMISSION, sub.id, "add_evaluation", actor,
              details={"evaluation_id": ev.id, "evaluator_type": data.evaluator_type, "evaluator": name})

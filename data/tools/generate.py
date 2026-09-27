@@ -94,36 +94,17 @@ def criterion_for(param, score: int):
     return None
 
 
-def generate_evaluation(db, version: ScorecardVersion, subject: str, ref: str, archetype, evaluator: str,
-                        rng: random.Random, when, attempt: int = 1, quality_shift: float = 0.0,
-                        complete: bool = True):
+def fill_evaluation(db, ev, version: ScorecardVersion, archetype, evaluator: str, rng: random.Random,
+                    quality_shift: float = 0.0, qtc_flags: bool = True):
+    """Rate every leaf of `ev` like a judge of the given profile would, for a subject of the given archetype."""
     scale = version.rating_scale
     span = scale.max_value - scale.min_value
     kids = {p.parent_id for p in version.parameters}
     leaves = [p for p in version.parameters if p.id not in kids]
     _, _, mean_q, spread, weak_critical = archetype
     bias, noise = EVALUATORS[evaluator]
-
-    critical_leaves = [p for p in leaves if p.is_critical] or [
-        p for p in leaves if p.parent and p.parent.is_critical
-    ]
+    critical_leaves = [p for p in leaves if p.is_critical] or [p for p in leaves if p.parent and p.parent.is_critical]
     sabotage = rng.choice(critical_leaves) if weak_critical and critical_leaves else None
-
-    ev = svc.create_evaluation(
-        db,
-        EvaluationCreate(
-            version_id=version.id,
-            subject_name=subject,
-            subject_ref=ref,
-            evaluator_type=evaluator,
-            evaluator_name="claude-opus-5" if evaluator == "llm" else rng.choice(HUMANS),
-            attempt_no=attempt,
-            input_text=f"[generated] {subject} — archetype '{archetype[0]}'",
-        ),
-        commit=False,
-    )
-    if evaluator == "llm":
-        ev.judge_model = "claude-opus-5"
 
     ratings, metric_values = [], []
     for p in leaves:
@@ -148,12 +129,32 @@ def generate_evaluation(db, version: ScorecardVersion, subject: str, ref: str, a
             evidence=crit.quantitative if crit else None,
             confidence=round(rng.uniform(0.55, 0.95), 2) if evaluator == "llm" else None,
         ))
-
     upd = EvaluationUpdate(ratings=ratings, metric_values=metric_values)
-    if version.qtc_enabled:
+    if version.qtc_enabled and qtc_flags:
         upd.time_met = rng.random() < 0.8
         upd.cost_met = rng.random() < 0.9
     svc.apply_update(db, ev, upd, commit=False)
+
+
+def generate_evaluation(db, version: ScorecardVersion, subject: str, ref: str, archetype, evaluator: str,
+                        rng: random.Random, when, attempt: int = 1, quality_shift: float = 0.0,
+                        complete: bool = True):
+    ev = svc.create_evaluation(
+        db,
+        EvaluationCreate(
+            version_id=version.id,
+            subject_name=subject,
+            subject_ref=ref,
+            evaluator_type=evaluator,
+            evaluator_name="claude-opus-5" if evaluator == "llm" else rng.choice(HUMANS),
+            attempt_no=attempt,
+            input_text=f"[generated] {subject} — archetype '{archetype[0]}'",
+        ),
+        commit=False,
+    )
+    if evaluator == "llm":
+        ev.judge_model = "claude-opus-5"
+    fill_evaluation(db, ev, version, archetype, evaluator, rng, quality_shift)
     ev.created_at = when
     if complete:
         svc.complete_evaluation(db, ev, commit=False)

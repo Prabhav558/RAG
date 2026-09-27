@@ -14,6 +14,7 @@
     "target_score": 10,
     "aggregation": "weighted_mean",
     "max_depth": 2,
+    "is_foundational": true,
     "parameters": [
       {"code": "PC", "name": "Purpose clarity", "weight": 15, "criteria": [
         {"score_min": 10, "score_max": 10, "qualitative": "Problem, users and measurable outcomes stated in one or two sentences.", "quantitative": "Purpose <= 2 sentences with >= 1 measurable outcome"},
