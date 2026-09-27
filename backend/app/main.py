@@ -2,8 +2,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from .db import SessionLocal, init_db
 from .routers import evaluations, scorecards
@@ -27,6 +29,22 @@ app = FastAPI(title="Scorecard Studio", version="0.1.0", lifespan=lifespan)
 async def domain_error_handler(_: Request, exc: DomainError):
     return JSONResponse(
         status_code=exc.status, content={"code": exc.code, "message": exc.message, "details": exc.details}
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def contract_error_handler(_: Request, exc: RequestValidationError):
+    # Never echo the raw input back: it may be NaN/Infinity (unserialisable) or megabytes of text.
+    detail = [{"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": detail[:50]})
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(_: Request, exc: IntegrityError):
+    # Safety net: validation should catch these first. A hit here is a validation gap to fix.
+    return JSONResponse(
+        status_code=409,
+        content={"code": "E017", "message": "The data violates a database integrity rule", "details": None},
     )
 
 

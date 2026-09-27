@@ -41,7 +41,7 @@ from .schemas import (
     ThresholdIn,
     VersionIn,
 )
-from .validation import ScaleInfo, has_errors, validate_scale, validate_version
+from .validation import ScaleInfo, has_errors, structural_errors, validate_scale, validate_version
 
 
 class DomainError(Exception):
@@ -203,17 +203,10 @@ def _build_parameters(version: ScorecardVersion, params: list[ParameterIn], pare
         _build_parameters(version, p.children, node)
 
 
-def _all_codes(params: list[ParameterIn]):
-    for p in params:
-        yield p.code
-        yield from _all_codes(p.children)
-
-
 def _apply_version_content(db: Session, version: ScorecardVersion, v: VersionIn):
-    codes = list(_all_codes(v.parameters))
-    dupes = sorted({c for c in codes if codes.count(c) > 1})
-    if dupes:  # codes identify parameters, so even a draft cannot hold duplicates
-        raise DomainError("V015", f"Duplicate parameter codes: {', '.join(dupes)}")
+    blocking = structural_errors(v)
+    if blocking:  # even a draft cannot hold these
+        raise DomainError(blocking[0].code, blocking[0].message, details=[i.model_dump() for i in blocking])
     scale = scale_by_code(db, v.rating_scale)
     version.purpose, version.scope, version.objective = v.purpose, v.scope, v.objective
     version.guidance, version.change_note = v.guidance, v.change_note
@@ -624,6 +617,13 @@ def apply_update(db: Session, ev: Evaluation, upd: EvaluationUpdate, commit: boo
     params = {p.id: p for p in version.parameters}
     metrics = {m.id: m for p in version.parameters for m in p.metrics}
 
+    rated = [r.parameter_id for r in upd.ratings]
+    if len(rated) != len(set(rated)):
+        raise DomainError("E016", "The same parameter is rated more than once in one request")
+    metric_ids = [mv.metric_id for mv in upd.metric_values]
+    if len(metric_ids) != len(set(metric_ids)):
+        raise DomainError("E016", "The same metric is given more than once in one request")
+
     for r in upd.ratings:
         res = results.get(r.parameter_id)
         if res is None:
@@ -832,6 +832,15 @@ MAX_DOC_CHARS = 400_000
 
 
 def extract_text(filename: str, data: bytes) -> str:
+    try:
+        return _extract_text(filename, data)
+    except DomainError:
+        raise
+    except Exception as e:  # corrupt or truncated DOCX/PDF: any parser error is a bad file, not a server error
+        raise DomainError("E015", f"Could not read '{filename}': the file is corrupt or not a valid document") from e
+
+
+def _extract_text(filename: str, data: bytes) -> str:
     name = filename.lower()
     if name.endswith(".docx"):
         with zipfile.ZipFile(io.BytesIO(data)) as z:

@@ -9,6 +9,8 @@ from __future__ import annotations
 from .schemas import Issue, ParameterIn, VersionIn
 
 MAX_TOP_LEVEL_ADVISED = 8
+MAX_PARAMETERS = 500  # hard limit per version
+HARD_MAX_DEPTH = 10  # drafts may exceed max_depth (reported at publish) but not this
 MIN_CRITERIA_ROWS_ADVISED = 6
 
 
@@ -141,6 +143,39 @@ def validate_version(v: VersionIn, scale: ScaleInfo) -> list[Issue]:
     check_siblings(v.parameters, "")
     for p in v.parameters:
         walk(p, 1, "")
+    return issues
+
+
+def structural_errors(v: VersionIn) -> list[Issue]:
+    """Problems that make a definition unstorable, so even a draft cannot be saved with them."""
+    issues: list[Issue] = []
+    codes: list[str] = []
+    count = 0
+
+    def walk(p: ParameterIn, depth: int, path: str):
+        nonlocal count
+        count += 1
+        here = f"{path}/{p.code}"
+        codes.append(p.code)
+        if depth > HARD_MAX_DEPTH:
+            issues.append(_err("V002", f"Hierarchy deeper than {HARD_MAX_DEPTH} levels", here))
+            return
+        metric_codes = [m.code for m in p.metrics]
+        for dup in sorted({c for c in metric_codes if metric_codes.count(c) > 1}):
+            issues.append(_err("V015", f"Duplicate metric code '{dup}'", here))
+        for c in p.criteria:
+            if c.score_max < c.score_min:
+                issues.append(_err("V007", f"Criterion range {c.score_min}–{c.score_max} is inverted", here))
+        for c in p.children:
+            walk(c, depth + 1, here)
+
+    for p in v.parameters:
+        walk(p, 1, "")
+    dupes = sorted({c for c in codes if codes.count(c) > 1})
+    if dupes:
+        issues.append(_err("V015", f"Duplicate parameter codes: {', '.join(dupes)}"))
+    if count > MAX_PARAMETERS:
+        issues.append(_err("V020", f"{count} parameters; the limit is {MAX_PARAMETERS} per scorecard"))
     return issues
 
 
