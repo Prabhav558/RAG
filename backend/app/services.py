@@ -213,6 +213,8 @@ def _apply_version_content(db: Session, version: ScorecardVersion, v: VersionIn)
     version.rating_scale = scale
     version.target_score, version.aggregation = v.target_score, v.aggregation
     version.max_depth, version.qtc_enabled = v.max_depth, v.qtc_enabled
+    version.required_judges, version.judge_tolerance_pct = v.required_judges, v.judge_tolerance_pct
+    version.require_self_appraisal, version.is_foundational = v.require_self_appraisal, v.is_foundational
     version.parameters.clear()
     db.flush()
     _build_parameters(version, v.parameters, None)
@@ -228,6 +230,7 @@ def create_scorecard(db: Session, d: ScorecardDefinition, publish: bool = False)
         owner=d.owner,
         tags=d.tags,
         is_template=d.is_template,
+        requires_review=d.requires_review,
     )
     version = ScorecardVersion(version_no=1, status="draft", target_score=d.version.target_score)
     sc.versions.append(version)
@@ -253,18 +256,40 @@ def validate_stored_version(version: ScorecardVersion):
     return validate_version(version_to_definition(version), scale_info(version.rating_scale))
 
 
-def publish_version(db: Session, version: ScorecardVersion, commit: bool = True):
-    if version.status != "draft":
-        raise DomainError("E009", "Only draft versions can be published", 409)
+def _require_valid(version: ScorecardVersion):
     issues = validate_stored_version(version)
     if has_errors(issues):
         raise DomainError(
             "V000", "Scorecard has validation errors", details=[i.model_dump() for i in issues if i.severity == "error"]
         )
+    return issues
+
+
+def go_live(db: Session, version: ScorecardVersion, actor: str):
+    """Shared by direct publish and reviewer approval: retire the previous published version."""
+    from . import workflow as wf
+    from .models import VersionReview
+
     for other in version.scorecard.versions:
         if other.status == "published" and other.id != version.id:
-            other.status, other.retired_at = "retired", now()
-    version.status, version.published_at = "published", now()
+            wf.transition(db, wf.VERSION, other, "retire", actor, details={"reason": f"superseded by v{version.version_no}"})
+            other.retired_at = now()
+    version.published_at = now()
+    db.add(VersionReview(version_id=version.id, action="published", actor=actor))
+
+
+def publish_version(db: Session, version: ScorecardVersion, commit: bool = True, actor: str = "system"):
+    """Direct publish (draft -> published), only for scorecards that do not require review."""
+    from . import workflow as wf
+
+    if version.status != "draft":
+        raise DomainError("E009", "Only draft versions can be published", 409)
+    if version.scorecard.requires_review:
+        raise DomainError("S001", "This scorecard requires reviewer approval: submit it for review instead", 409,
+                          details=["allowed: submit_for_review"])
+    issues = _require_valid(version)
+    go_live(db, version, actor)
+    wf.transition(db, wf.VERSION, version, "publish", actor)
     if commit:
         db.commit()
     return issues
@@ -272,8 +297,8 @@ def publish_version(db: Session, version: ScorecardVersion, commit: bool = True)
 
 def new_draft_from(db: Session, source: ScorecardVersion, change_note: str | None = None) -> ScorecardVersion:
     sc = source.scorecard
-    if any(v.status == "draft" for v in sc.versions):
-        raise DomainError("E014", "This scorecard already has a draft version", 409)
+    if any(v.status in ("draft", "in_review") for v in sc.versions):
+        raise DomainError("E014", "This scorecard already has a draft or a version in review", 409)
     content = version_to_definition(source)
     content.change_note = change_note
     version = ScorecardVersion(
@@ -368,6 +393,10 @@ def version_to_definition(version: ScorecardVersion) -> VersionIn:
         aggregation=version.aggregation,
         max_depth=version.max_depth,
         qtc_enabled=version.qtc_enabled,
+        required_judges=version.required_judges,
+        judge_tolerance_pct=version.judge_tolerance_pct,
+        require_self_appraisal=version.require_self_appraisal,
+        is_foundational=version.is_foundational,
         change_note=version.change_note,
         parameters=[conv(p) for p in kids.get(None, [])],
     )
@@ -382,6 +411,7 @@ def export_definition(version: ScorecardVersion) -> ScorecardDefinition:
         owner=sc.owner,
         tags=list(sc.tags or []),
         is_template=sc.is_template,
+        requires_review=sc.requires_review,
         version=version_to_definition(version),
     )
 
@@ -468,6 +498,11 @@ def version_view(version: ScorecardVersion) -> dict:
         "aggregation": version.aggregation,
         "max_depth": version.max_depth,
         "qtc_enabled": version.qtc_enabled,
+        "required_judges": version.required_judges,
+        "judge_tolerance_pct": version.judge_tolerance_pct,
+        "require_self_appraisal": version.require_self_appraisal,
+        "is_foundational": version.is_foundational,
+        "requires_review": sc.requires_review,
         "change_note": version.change_note,
         "published_at": version.published_at,
         "rating_scale": scale_view(version.rating_scale),
@@ -508,6 +543,7 @@ def scorecard_summary(db: Session, sc: Scorecard) -> dict:
         "owner": sc.owner,
         "tags": list(sc.tags or []),
         "is_template": sc.is_template,
+        "requires_review": sc.requires_review,
         "purpose": current.purpose,
         "parameter_count": n,
         "leaf_count": leaves,
@@ -573,9 +609,11 @@ def load_version(db: Session, version_id: int) -> ScorecardVersion:
     return v
 
 
-def create_evaluation(db: Session, data: EvaluationCreate, commit: bool = True) -> Evaluation:
+def create_evaluation(db: Session, data: EvaluationCreate, commit: bool = True,
+                      allow_unpublished: bool = False) -> Evaluation:
+    """`allow_unpublished` is only for evaluations inside a submission, which pins the version it started on."""
     version = load_version(db, data.version_id)
-    if version.status != "published":
+    if version.status != "published" and not allow_unpublished:
         raise DomainError("E001", "Evaluations can only be created against a published scorecard version", 409)
     scale = version.rating_scale
     target = version.target_score if data.target_score is None else data.target_score
@@ -709,6 +747,12 @@ def recompute(ev: Evaluation) -> scoring.EvaluationOutcome:
 
 def complete_evaluation(db: Session, ev: Evaluation, commit: bool = True) -> Evaluation:
     _require_draft(ev)
+    if ev.submission is not None:
+        allowed = ("open",) if ev.evaluator_type == "self" else ("in_review",)
+        if ev.submission.status not in allowed:
+            raise DomainError("S009", f"The submission is {ev.submission.status}; this "
+                              f"{'self-appraisal' if ev.evaluator_type == 'self' else 'judge evaluation'} "
+                              "can no longer be completed", 409)
     out = recompute(ev)
     if not out.complete:
         names = {p.id: f"{p.code} {p.name}" for p in ev.version.parameters}
@@ -717,7 +761,8 @@ def complete_evaluation(db: Session, ev: Evaluation, commit: bool = True) -> Eva
             "Every required leaf parameter needs a score (or metric values) before completion",
             details=[names[i] for i in out.pending_leaf_ids],
         )
-    if ev.version.qtc_enabled and (ev.time_met is None or ev.cost_met is None):
+    # inside a submission, time and cost are facts of the submission (due date, budget, actual cost), not of a judge
+    if ev.version.qtc_enabled and ev.submission is None and (ev.time_met is None or ev.cost_met is None):
         raise DomainError("E007", "This scorecard applies the QTC rule: record whether time and cost were met")
     ev.status, ev.completed_at = "completed", now()
     if commit:
@@ -783,6 +828,7 @@ def evaluation_view(ev: Evaluation) -> dict:
         "attempt_no": ev.attempt_no,
         "origin": ev.origin,
         "origin_ref": ev.origin_ref,
+        "submission_id": ev.submission_id,
         "final_score": ev.final_score,
         "band_label": ev.band_label,
         "rag": ev.rag,
@@ -824,6 +870,7 @@ def evaluation_row(ev: Evaluation) -> dict:
         "qtc_green": ev.qtc_green,
         "is_private": ev.is_private,
         "origin": ev.origin,
+        "submission_id": ev.submission_id,
         "created_at": ev.created_at,
         "completed_at": ev.completed_at,
     }

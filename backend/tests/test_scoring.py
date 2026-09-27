@@ -196,3 +196,12 @@ def test_root_minimum_aggregation():
 
 def test_band_for_none():
     assert band_for(None, BANDS_0_10) is None
+
+
+def test_zero_weight_only_scored_gives_no_provisional_score():
+    """Found by the property tests in Cycle 3: a scored zero-weight leaf must not stand in for its weighted siblings."""
+    params = [P(1, weight=0), P(2, weight=0), P(3, weight=1)]
+    out = compute(card(params), judged(p2=1), {})
+    assert out.final_score is None and out.complete is False
+    all_zero = compute(card([P(1, weight=0), P(2, weight=0)]), judged(p1=4, p2=8), {})
+    assert all_zero.final_score == 6.0  # equal-weight fallback only when every applicable sibling is zero-weight

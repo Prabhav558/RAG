@@ -121,9 +121,14 @@ def _normalised(weights: list[float]) -> list[float]:
     return [w / total for w in weights]
 
 
-def _aggregate(method: str, scores: list[float], weights: list[float]) -> float:
+def _aggregate(method: str, scores: list[float], weights: list[float], applicable_weight: float) -> float | None:
+    """`applicable_weight` = total weight of all applicable siblings, scored or not. Zero-weight siblings only count
+    when every applicable sibling has zero weight (equal-weight fallback); otherwise a set of scored siblings that
+    are all zero-weight carries no weighted evidence yet, so there is no (provisional) score."""
     if method == "minimum":
         return min(scores)
+    if sum(weights) <= EPS and applicable_weight > EPS:
+        return None
     return sum(s * w for s, w in zip(scores, _normalised(weights)))
 
 
@@ -194,7 +199,8 @@ def compute(
             scored = [(k, o) for k, o in applicable if o.final_score is not None]
             if scored:
                 out.final_score = _aggregate(
-                    p.aggregation, [o.final_score for _, o in scored], [k.weight for k, _ in scored]
+                    p.aggregation, [o.final_score for _, o in scored], [k.weight for k, _ in scored],
+                    sum(k.weight for k, _ in applicable),
                 )
             out.complete = all(o.complete for _, o in applicable)
         outcomes[p.id] = out
@@ -219,7 +225,8 @@ def compute(
     applicable_roots = [(r, o) for r, o in zip(roots, root_outs) if not o.not_applicable]
     scored_roots = [(r, o) for r, o in applicable_roots if o.final_score is not None]
     final = (
-        _aggregate(card.aggregation, [o.final_score for _, o in scored_roots], [r.weight for r, _ in scored_roots])
+        _aggregate(card.aggregation, [o.final_score for _, o in scored_roots], [r.weight for r, _ in scored_roots],
+                   sum(r.weight for r, _ in applicable_roots))
         if scored_roots
         else None
     )

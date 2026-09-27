@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
 from .db import SessionLocal, init_db
-from .routers import evaluations, migrations, scorecards
+from .routers import evaluations, flow, migrations, scorecards
 from .services import DomainError, seed_reference_data
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -51,6 +51,7 @@ async def integrity_error_handler(_: Request, exc: IntegrityError):
 app.include_router(scorecards.router)
 app.include_router(evaluations.router)
 app.include_router(migrations.router)
+app.include_router(flow.router)
 
 
 @app.get("/api/health")

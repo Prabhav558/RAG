@@ -69,6 +69,10 @@ class VersionIn(Contract):
     aggregation: Aggregation = "weighted_mean"
     max_depth: int = Field(default=4, ge=1, le=6)
     qtc_enabled: bool = False
+    required_judges: int = Field(default=1, ge=1, le=5)
+    judge_tolerance_pct: float = Field(default=10.0, ge=0, le=100)
+    require_self_appraisal: bool = False
+    is_foundational: bool = False
     change_note: str | None = Field(default=None, max_length=TEXT_MAX)
     parameters: list[ParameterIn] = Field(default_factory=list)
 
@@ -80,10 +84,12 @@ class ScorecardDefinition(Contract):
     owner: str | None = Field(default=None, max_length=120)
     tags: list[str] = Field(default_factory=list)
     is_template: bool = False
+    requires_review: bool = False
     version: VersionIn
 
 
 class ScorecardMetaUpdate(Contract):
+    requires_review: bool | None = None
     name: str | None = None
     subject_type: str | None = None
     owner: str | None = None
