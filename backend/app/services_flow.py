@@ -49,6 +49,11 @@ class SubjectIn(Contract):
     description: str | None = Field(default=None, max_length=TEXT_MAX)
     due_at: datetime | None = None
     budget: float | None = Field(default=None, ge=0, le=1e12)
+    # ODTQRC task definition: Objective, Deliverable, Time (due_at), Quality, Risk, Cost (budget)
+    objective: str | None = Field(default=None, max_length=TEXT_MAX)
+    deliverable: str | None = Field(default=None, max_length=TEXT_MAX)
+    quality_bar: str | None = Field(default=None, max_length=TEXT_MAX)
+    risks: str | None = Field(default=None, max_length=TEXT_MAX)
 
 
 class SubjectUpdate(Contract):
@@ -58,6 +63,10 @@ class SubjectUpdate(Contract):
     description: str | None = Field(default=None, max_length=TEXT_MAX)
     due_at: datetime | None = None
     budget: float | None = Field(default=None, ge=0, le=1e12)
+    objective: str | None = Field(default=None, max_length=TEXT_MAX)
+    deliverable: str | None = Field(default=None, max_length=TEXT_MAX)
+    quality_bar: str | None = Field(default=None, max_length=TEXT_MAX)
+    risks: str | None = Field(default=None, max_length=TEXT_MAX)
 
 
 class SubmissionIn(Contract):
@@ -201,7 +210,9 @@ def create_subject(db: Session, data: SubjectIn, actor: str) -> Subject:
             raise DomainError("E011", f"Subject code '{code}' already exists", 409)
         code, n = f"{base}-{n}", n + 1
     s = Subject(code=code, name=data.name, subject_type=st, parent=parent, owner=data.owner.strip(),
-                description=data.description, due_at=data.due_at, budget=data.budget)
+                description=data.description, due_at=data.due_at, budget=data.budget,
+                objective=data.objective, deliverable=data.deliverable, quality_bar=data.quality_bar,
+                risks=data.risks)
     db.add(s)
     db.flush()
     wf.audit(db, "subject", s.id, "create", actor, details={"code": code})
@@ -213,8 +224,9 @@ def update_subject(db: Session, s: Subject, data: SubjectUpdate, actor: str) -> 
     fields = data.model_fields_set
     if "parent_id" in fields:
         s.parent = _check_parent(db, s, data.parent_id)
-    for f in ("name", "owner", "description", "due_at", "budget"):
-        if f in fields and (getattr(data, f) is not None or f in ("description", "due_at", "budget")):
+    always_nullable = ("description", "due_at", "budget", "objective", "deliverable", "quality_bar", "risks")
+    for f in ("name", "owner", *always_nullable):
+        if f in fields and (getattr(data, f) is not None or f in always_nullable):
             setattr(s, f, getattr(data, f))
     wf.audit(db, "subject", s.id, "update", actor, details={"fields": sorted(fields)})
     db.commit()

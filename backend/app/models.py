@@ -385,8 +385,14 @@ class Subject(Base):
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("subject.id"), index=True)
     owner: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
-    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # QTC: agreed time
-    budget: Mapped[float | None] = mapped_column(Float)  # QTC: agreed cost (people-hours cost + infra)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # ODTQRC: Time (also QTC: agreed time)
+    budget: Mapped[float | None] = mapped_column(Float)  # ODTQRC: Cost (also QTC: agreed cost)
+    # ODTQRC task definition (docs/12_ARCHITECTURE.md): Objective, Deliverable, Time (due_at), Quality, Risk,
+    # Cost (budget) — the fields a clarity agent (app/clarity.py) reviews for vagueness before work starts.
+    objective: Mapped[str | None] = mapped_column(Text)
+    deliverable: Mapped[str | None] = mapped_column(Text)
+    quality_bar: Mapped[str | None] = mapped_column(Text)
+    risks: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

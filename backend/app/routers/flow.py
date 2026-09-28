@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .. import auth
 from .. import services as svc
 from .. import services_flow as flow
+from ..clarity import ClarityAgent, ClarityError, get_clarity_agent
 from ..db import get_session
 from ..models import AuditEvent, Subject, Submission
 
@@ -102,6 +103,7 @@ def get_subject(subject_id: int, db: Session = Depends(get_session)):
         path.insert(0, {"id": node.id, "name": node.name, "code": node.code})
         node = node.parent
     return {**flow.rollup(s), "path": path, "description": s.description,
+            "objective": s.objective, "deliverable": s.deliverable, "quality_bar": s.quality_bar, "risks": s.risks,
             "blocked_by": [{"id": b.id, "name": b.name} for b in flow.blockers_in_project(s)],
             "submissions": flow.submissions_list(db, subject_id=s.id)}
 
@@ -110,6 +112,22 @@ def get_subject(subject_id: int, db: Session = Depends(get_session)):
 def update_subject(subject_id: int, body: flow.SubjectUpdate, who: str = Depends(actor),
                    db: Session = Depends(get_session)):
     return flow.rollup(flow.update_subject(db, _subject(db, subject_id), body, who))
+
+
+@router.post("/subjects/{subject_id}/clarity-check")
+def clarity_check(subject_id: int, db: Session = Depends(get_session),
+                  agent: ClarityAgent = Depends(get_clarity_agent)):
+    """Advisory only: reviews the subject's ODTQRC task definition for vagueness. Never changes the subject."""
+    s = _subject(db, subject_id)
+    task = {"name": s.name, "description": s.description, "objective": s.objective, "deliverable": s.deliverable,
+            "due_at": s.due_at.isoformat() if s.due_at else None, "quality_bar": s.quality_bar, "risks": s.risks,
+            "budget": s.budget}
+    try:
+        result = agent.review(task)
+    except ClarityError as e:
+        raise svc.DomainError("J002", str(e), e.status) from e
+    return {"model": result.model, "is_clear": result.is_clear, "summary": result.summary,
+            "issues": [{"field": i.field, "problem": i.problem, "suggestion": i.suggestion} for i in result.issues]}
 
 
 # ---------------------------------------------------------------- submissions

@@ -350,6 +350,35 @@ def test_subject_hierarchy_guards(f):
     assert r.json()["code"] == "S008"
 
 
+# ---------------------------------------------------------------- ODTQRC task definition
+
+
+def test_odtqrc_fields_round_trip_and_can_be_cleared(f):
+    s = f.subject("Write the report", objective="Ship a 5-page report reviewed by Lead",
+                  deliverable="report.pdf in the shared drive", quality_bar="Passes the review checklist",
+                  risks="Reviewer might be on leave")
+    got = f.c.get(f"/api/subjects/{s['id']}").json()
+    assert got["objective"] == "Ship a 5-page report reviewed by Lead"
+    assert got["deliverable"] == "report.pdf in the shared drive"
+    assert got["quality_bar"] == "Passes the review checklist"
+    assert got["risks"] == "Reviewer might be on leave"
+
+    r = f.c.patch(f"/api/subjects/{s['id']}", json={"objective": "Revised objective"}, headers=H("Lead"))
+    assert r.status_code == 200
+    got = f.c.get(f"/api/subjects/{s['id']}").json()
+    assert got["objective"] == "Revised objective" and got["deliverable"] == "report.pdf in the shared drive"
+
+    f.c.patch(f"/api/subjects/{s['id']}", json={"risks": None}, headers=H("Lead"))
+    assert f.c.get(f"/api/subjects/{s['id']}").json()["risks"] is None
+
+
+def test_odtqrc_fields_default_to_blank(f):
+    s = f.subject("Bare subject")
+    got = f.c.get(f"/api/subjects/{s['id']}").json()
+    assert got["objective"] is None and got["deliverable"] is None
+    assert got["quality_bar"] is None and got["risks"] is None
+
+
 # ---------------------------------------------------------------- red diagnosis & behaviour analytics
 
 

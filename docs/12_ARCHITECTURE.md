@@ -57,10 +57,10 @@ flowchart LR
   server-side.
 
 ## Extension points (Phase 2 and beyond)
-| Need | Where it plugs in |
-|---|---|
-| SSO / authorisation | FastAPI dependency replacing `routers/flow.actor` |
-| Another LLM or judging strategy | `judge.Judge` protocol |
-| ODTQRC task definition | New fields on `subject` + a clarity-agent judge using the same Judge protocol |
-| Capability & competency (C1–C6) | People dimension keyed by owner/judge names already stored |
-| Predictive analytics | Read models over `submission` + `audit_event` |
+| Need | Where it plugs in | Status |
+|---|---|---|
+| SSO / authorisation | `app/auth.py` (session + RBAC), routers gated by `Depends(auth.get_current_user)` | Done — see docs/14_PHASE2_SECURITY_SPEC.md |
+| Another LLM or judging strategy | `judge.Judge` protocol | Done (Cycle 1) |
+| ODTQRC task definition | `objective`/`deliverable`/`quality_bar`/`risks` on `subject` (+ existing `due_at`/`budget`) and a clarity agent (`app/clarity.py`, same swappable-strategy shape as `judge.Judge`); `POST /api/subjects/{id}/clarity-check` | Done |
+| Capability & competency (C1–C6) | People dimension keyed by owner/judge names already stored | Not started |
+| Predictive analytics | Read models over `submission` + `audit_event` | Not started |
