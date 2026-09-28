@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app import services_flow as flow
 from app import workflow as wf
 
 from .flowkit import H, Flow
@@ -439,6 +440,82 @@ def test_capability_history_collapses_to_current_per_scorecard(f):
     current = f.c.get("/api/capabilities?person=Eve&current=true", headers=H("Lead")).json()
     by_card = {c["scorecard"]: c["level"] for c in current}
     assert by_card == {v1["scorecard_code"]: 5, v2["scorecard_code"]: 1}
+
+
+# ---------------------------------------------------------------- predictive & prescriptive analytics
+
+
+def test_risk_forecast_flags_overdue_subject(f):
+    v = f.scorecard()
+    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    s = f.subject("Overdue task", due_at=past)
+    sub = f.start(s["id"], v["id"]).json()  # left open
+
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert "overdue" in rows[sub["id"]]["factors"]
+    assert rows[sub["id"]]["recommended_action"] == "rescope"
+    assert rows[sub["id"]]["band"] in ("amber", "red")
+
+
+def test_risk_forecast_flags_cost_overrun(f):
+    v = f.scorecard()
+    s = f.subject("Over budget", budget=100)
+    sub = f.start(s["id"], v["id"]).json()
+    f.c.patch(f"/api/submissions/{sub['id']}", json={"actual_cost": 150}, headers=H("Alice"))
+
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert "cost_overrun" in rows[sub["id"]]["factors"]
+
+
+def test_risk_forecast_flags_track_record(f):
+    v = f.scorecard()
+    for i in range(flow.RED_THRESHOLD):
+        s = f.subject(f"R{i}", owner="Eve")
+        sub = f.start(s["id"], v["id"], actor="Eve").json()
+        f.act(sub["id"], "submit", "Eve")
+        f.judge(sub["id"], 4)
+        f.act(sub["id"], "decide", "Lead")
+    new_task = f.subject("New for Eve", owner="Eve")
+    open_sub = f.start(new_task["id"], v["id"], actor="Eve").json()
+
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert "track_record" in rows[open_sub["id"]]["factors"]
+    assert rows[open_sub["id"]]["recommended_action"] == "discuss"
+
+
+def test_risk_forecast_flags_low_capability_and_prescribes_training(f):
+    v = f.scorecard()
+    s = f.subject("Needs skill", owner="Eve")
+    f.c.post("/api/capabilities", json={"person": "Eve", "scorecard": v["scorecard_code"], "level": 2},
+            headers=H("Lead"))
+    sub = f.start(s["id"], v["id"], actor="Eve").json()
+
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert "low_capability" in rows[sub["id"]]["factors"]
+    assert rows[sub["id"]]["recommended_action"] == "train"
+
+
+def test_risk_forecast_flags_resubmission(f):
+    v = f.scorecard()
+    s = f.subject("Redo me")
+    sub = f.start(s["id"], v["id"]).json()
+    f.act(sub["id"], "submit")
+    f.judge(sub["id"], 5)
+    f.act(sub["id"], "decide", "Lead")  # redo
+    sub2 = f.start(s["id"], v["id"]).json()
+    assert sub2["attempt_no"] == 2
+
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert "resubmission" in rows[sub2["id"]]["factors"]
+
+
+def test_risk_forecast_score_is_zero_with_no_factors(f):
+    v = f.scorecard()
+    s = f.subject("Clean task")
+    sub = f.start(s["id"], v["id"]).json()
+    rows = {r["submission_id"]: r for r in f.c.get("/api/analytics/risk-forecast", headers=H("Lead")).json()}
+    assert rows[sub["id"]] == {**rows[sub["id"]], "score": 0, "band": "green", "factors": [],
+                               "recommended_action": "none"}
 
 
 def test_behaviour_analytics(f):

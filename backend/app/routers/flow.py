@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .. import auth
 from .. import services as svc
 from .. import services_flow as flow
+from .. import workflow as wf
 from ..clarity import ClarityAgent, ClarityError, get_clarity_agent
 from ..db import get_session
 from ..models import AuditEvent, Subject, Submission
@@ -236,6 +237,16 @@ def capabilities(person: str | None = None, current: bool = False, who: str = De
 def behaviour(db: Session = Depends(get_session)):
     return {"gates": flow.gate_outcomes(db), "self_appraisal": flow.self_appraisal_gap(db),
             "disputed_parameters": flow.disputed_parameters(db)}
+
+
+@router.get("/analytics/risk-forecast")
+def risk_forecast(who: str = Depends(actor), user=Depends(auth.get_current_user), db: Session = Depends(get_session)):
+    """Predictive (risk score + factors) and prescriptive (recommended_action) analytics over open submissions.
+    Same privacy rule as diagnoses and capabilities: a person's own risk is theirs to see; everyone's is lead/admin
+    only, since the factors include personal track record."""
+    rows = flow.risk_forecast(db)
+    is_lead = "lead" in user.roles or "admin" in user.roles
+    return rows if is_lead else [r for r in rows if wf.same_person(r["owner"], who)]
 
 
 @router.get("/audit")

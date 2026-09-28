@@ -273,3 +273,25 @@ def test_member_cannot_record_capability(client):
     r = client.post("/api/capabilities", json={"person": "Someone", "scorecard": card["code"], "level": 3},
                     headers=headers)
     assert r.status_code == 403 and r.json()["code"] == "AUTH006"
+
+
+def test_risk_forecast_is_private_to_lead_and_the_person(client):
+    card = client.post("/api/scorecards?publish=true", json=definition(code="risk-privacy-card")).json()
+    vid = card["versions"][0]["id"]
+    subject = client.post("/api/subjects",
+                          json={"name": "Alice R's task", "subject_type": "task", "owner": "Alice R"}).json()
+    sub = client.post(f"/api/subjects/{subject['id']}/submissions", json={"version_id": vid}).json()
+
+    a = _as("risk-alice", "Alice R")(client)
+    as_alice = client.get("/api/analytics/risk-forecast", headers=a).json()
+    assert [r["submission_id"] for r in as_alice] == [sub["id"]]
+
+    other = _as("risk-bob", "Bob R")(client)
+    as_bob = client.get("/api/analytics/risk-forecast", headers=other).json()
+    assert as_bob == []
+
+    lead = register(client, "risk-lead", "Lead R")
+    lead_headers = {"Authorization": f"Bearer {lead.json()['token']}"}
+    client.patch(f"/api/users/{lead.json()['user']['id']}", json={"roles": ["lead"]})
+    as_lead = client.get("/api/analytics/risk-forecast", headers=lead_headers).json()
+    assert sub["id"] in [r["submission_id"] for r in as_lead]

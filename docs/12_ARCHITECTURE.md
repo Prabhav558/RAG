@@ -63,4 +63,4 @@ flowchart LR
 | Another LLM or judging strategy | `judge.Judge` protocol | Done (Cycle 1) |
 | ODTQRC task definition | `objective`/`deliverable`/`quality_bar`/`risks` on `subject` (+ existing `due_at`/`budget`) and a clarity agent (`app/clarity.py`, same swappable-strategy shape as `judge.Judge`); `POST /api/subjects/{id}/clarity-check` | Done |
 | Capability & competency (C1–C6) | `Capability` model: person + scorecard + level (1–6, novice→expert), append-only like `Diagnosis`; `POST`/`GET /api/capabilities` (lead-gated write, same privacy rule as diagnoses) | Done |
-| Predictive analytics | Read models over `submission` + `audit_event` | Not started |
+| Predictive & prescriptive analytics | `services_flow.risk_forecast`: a deterministic, fully-explained risk score (no ML) per open submission from signals already recorded (overdue, cost overrun, track record, low capability, resubmission), plus a recommended action from the same vocabulary `Diagnosis` uses; `GET /api/analytics/risk-forecast` (same privacy rule as diagnoses/capabilities) | Done |

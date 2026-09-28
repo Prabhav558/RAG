@@ -678,6 +678,72 @@ def current_capabilities(db: Session, person: str | None = None) -> list[dict]:
     return list(seen.values())
 
 
+# ---------------------------------------------------------------- predictive & prescriptive analytics
+
+# Points added to an open submission's risk score per signal, all derived from data already recorded — no ML,
+# no external model, every score fully explained by its `factors` list.
+RISK_WEIGHTS = {"overdue": 30, "cost_overrun": 20, "track_record": 25, "low_capability": 15, "resubmission": 10}
+RISK_BANDS = [(50, "red"), (25, "amber")]  # first threshold met wins; below all of them is "green"
+
+# Prescriptive: the same action vocabulary Diagnosis already uses, chosen by the dominant risk signal.
+_FACTOR_ACTION = [("low_capability", "train"), ("track_record", "discuss"), ("overdue", "rescope"),
+                  ("cost_overrun", "rescope"), ("resubmission", "reassign")]
+
+
+def _capability_level(db: Session, owner: str, scorecard_id: int) -> int | None:
+    row = db.scalar(select(Capability).where(Capability.person.ilike(owner), Capability.scorecard_id == scorecard_id)
+                    .order_by(Capability.set_at.desc()))
+    return row.level if row else None
+
+
+def _recommend_action(factors: list[str]) -> str:
+    for factor, action in _FACTOR_ACTION:
+        if factor in factors:
+            return action
+    return "none"
+
+
+def risk_forecast(db: Session, threshold: int = RED_THRESHOLD, window_days: int = RED_WINDOW_DAYS) -> list[dict]:
+    """Predictive: a risk score (and the plain-English factors behind it) for every open submission, so a lead
+    can see trouble before a submission fails rather than after. Prescriptive: a recommended next action, from
+    the signal that contributes most. Read-only and advisory, like the clarity agent — it never changes anything."""
+    since = svc.now() - timedelta(days=window_days)
+    open_subs = db.scalars(
+        select(Submission).where(Submission.status.in_(("open", "in_review", "adjudication")))
+        .options(selectinload(Submission.subject),
+                 selectinload(Submission.version).selectinload(ScorecardVersion.scorecard))
+    )
+    redos = db.scalars(select(Submission).where(Submission.decision == "redo"))
+    recent_reds: dict[str, int] = defaultdict(int)
+    for r in redos:
+        if r.decided_at and _aware(r.decided_at) >= since:
+            recent_reds[r.owner.strip().casefold()] += 1
+
+    out = []
+    for s in open_subs:
+        factors = []
+        if s.subject.due_at and _aware(s.subject.due_at) < svc.now():
+            factors.append("overdue")
+        if s.subject.budget is not None and s.actual_cost is not None and s.actual_cost > s.subject.budget:
+            factors.append("cost_overrun")
+        if recent_reds.get(s.owner.strip().casefold(), 0) >= threshold:
+            factors.append("track_record")
+        level = _capability_level(db, s.owner, s.version.scorecard_id)
+        if level is not None and level < 4:
+            factors.append("low_capability")
+        if s.attempt_no > 1:
+            factors.append("resubmission")
+        score = sum(RISK_WEIGHTS[f] for f in factors)
+        band = next((b for cutoff, b in RISK_BANDS if score >= cutoff), "green")
+        out.append({
+            "submission_id": s.id, "subject_id": s.subject_id, "subject_name": s.subject.name,
+            "scorecard": s.version.scorecard.name, "owner": s.owner, "status": s.status,
+            "score": score, "band": band, "factors": factors, "recommended_action": _recommend_action(factors),
+        })
+    out.sort(key=lambda r: -r["score"])
+    return out
+
+
 # ---------------------------------------------------------------- behaviour analytics
 
 
