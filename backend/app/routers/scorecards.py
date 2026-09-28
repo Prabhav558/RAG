@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import auth
 from .. import services as svc
 from ..db import get_session
 from ..models import RatingScale, Scorecard, ScorecardVersion, SubjectType
@@ -16,6 +17,7 @@ from ..schemas import (
 from ..validation import validate_version
 
 router = APIRouter(prefix="/api")
+require_designer = auth.require_role("designer")
 
 
 def _scorecard(db: Session, scorecard_id: int) -> Scorecard:
@@ -38,7 +40,7 @@ def list_scales(db: Session = Depends(get_session)):
 
 
 @router.post("/meta/scales", status_code=201)
-def create_scale(body: ScaleIn, db: Session = Depends(get_session)):
+def create_scale(body: ScaleIn, _: object = Depends(require_designer), db: Session = Depends(get_session)):
     return svc.scale_view(svc.create_scale(db, body))
 
 
@@ -51,7 +53,7 @@ def list_subject_types(db: Session = Depends(get_session)):
 
 
 @router.post("/meta/subject-types", status_code=201)
-def create_subject_type(body: SubjectTypeIn, db: Session = Depends(get_session)):
+def create_subject_type(body: SubjectTypeIn, _: object = Depends(require_designer), db: Session = Depends(get_session)):
     if db.scalar(select(SubjectType).where(SubjectType.code == body.code)):
         raise svc.DomainError("E011", f"Subject type '{body.code}' already exists", 409)
     st = SubjectType(**body.model_dump())
@@ -73,7 +75,8 @@ def list_scorecards(subject_type: str | None = None, db: Session = Depends(get_s
 
 
 @router.post("/scorecards", status_code=201)
-def create_scorecard(body: ScorecardDefinition, publish: bool = False, db: Session = Depends(get_session)):
+def create_scorecard(body: ScorecardDefinition, publish: bool = False, _: object = Depends(require_designer),
+                     db: Session = Depends(get_session)):
     sc = svc.create_scorecard(db, body, publish=publish)
     return svc.scorecard_summary(db, sc)
 
@@ -84,7 +87,8 @@ def get_scorecard(scorecard_id: int, db: Session = Depends(get_session)):
 
 
 @router.patch("/scorecards/{scorecard_id}")
-def update_scorecard_meta(scorecard_id: int, body: ScorecardMetaUpdate, db: Session = Depends(get_session)):
+def update_scorecard_meta(scorecard_id: int, body: ScorecardMetaUpdate, _: object = Depends(require_designer),
+                          db: Session = Depends(get_session)):
     sc = _scorecard(db, scorecard_id)
     data = body.model_dump(exclude_unset=True)
     if "subject_type" in data:
@@ -96,14 +100,15 @@ def update_scorecard_meta(scorecard_id: int, body: ScorecardMetaUpdate, db: Sess
 
 
 @router.delete("/scorecards/{scorecard_id}", status_code=204)
-def archive_scorecard(scorecard_id: int, db: Session = Depends(get_session)):
+def archive_scorecard(scorecard_id: int, _: object = Depends(require_designer), db: Session = Depends(get_session)):
     sc = _scorecard(db, scorecard_id)
     sc.archived_at = svc.now()
     db.commit()
 
 
 @router.post("/scorecards/{scorecard_id}/clone", status_code=201)
-def clone_scorecard(scorecard_id: int, body: CloneRequest, db: Session = Depends(get_session)):
+def clone_scorecard(scorecard_id: int, body: CloneRequest, _: object = Depends(require_designer),
+                    db: Session = Depends(get_session)):
     sc = _scorecard(db, scorecard_id)
     source = _version(db, body.version_id) if body.version_id else sc.versions[-1]
     if source.scorecard_id != sc.id:
@@ -126,7 +131,8 @@ def get_definition(version_id: int, db: Session = Depends(get_session)):
 
 
 @router.put("/versions/{version_id}")
-def save_draft(version_id: int, body: VersionIn, db: Session = Depends(get_session)):
+def save_draft(version_id: int, body: VersionIn, _: object = Depends(require_designer),
+              db: Session = Depends(get_session)):
     version = svc.update_draft(db, _version(db, version_id), body)
     return {
         "version": svc.version_view(version),
@@ -147,17 +153,19 @@ def validate_definition(body: VersionIn, db: Session = Depends(get_session)):
 
 
 @router.post("/versions/{version_id}/publish")
-def publish(version_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+def publish(version_id: int, who: str = Depends(auth.actor_name), _: object = Depends(require_designer),
+           db: Session = Depends(get_session)):
     version = svc.load_version(db, version_id, lock=True)
-    issues = svc.publish_version(db, version, actor=(x_actor or "anonymous").strip()[:120] or "anonymous")
+    issues = svc.publish_version(db, version, actor=who)
     return {"version": svc.version_view(version), "issues": [i.model_dump() for i in issues]}
 
 
 @router.post("/versions/{version_id}/new-draft", status_code=201)
-def new_draft(version_id: int, change_note: str | None = None, db: Session = Depends(get_session)):
+def new_draft(version_id: int, change_note: str | None = None, _: object = Depends(require_designer),
+              db: Session = Depends(get_session)):
     return svc.version_view(svc.new_draft_from(db, _version(db, version_id), change_note))
 
 
 @router.delete("/versions/{version_id}", status_code=204)
-def delete_draft(version_id: int, db: Session = Depends(get_session)):
+def delete_draft(version_id: int, _: object = Depends(require_designer), db: Session = Depends(get_session)):
     svc.delete_draft(db, _version(db, version_id))

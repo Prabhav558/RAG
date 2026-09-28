@@ -1,18 +1,73 @@
-"""Helpers to drive the Cycle 3 workflows through the API (shared by workflow and acceptance tests)."""
+"""Helpers to drive the Cycle 3 workflows through the API (shared by workflow and acceptance tests).
+
+Phase 2 made every workflow action require a real login (docs/14_PHASE2_SECURITY_SPEC.md). `H(actor)` keeps the
+old call shape used throughout these tests: it transparently registers/logs in a user for that display name (once
+per test, cached) and returns a real `Authorization: Bearer <token>` header.
+
+Newly-registered test actors are granted every role, because these tests exercise workflow and
+separation-of-duties rules, not role-based authorisation (RBAC itself has dedicated tests in test_auth.py). The
+grant goes through the ordinary admin API (`PATCH /api/users/{id}`), using the client's own default identity —
+the `client` fixture in conftest.py registers as the very first user of a fresh database, which `auth.register`
+always makes an admin — never a direct database side channel. This is also why it works unchanged against a
+live remote server, not just the in-process TestClient.
+"""
 
 from __future__ import annotations
 
+import re
+import threading
+
+from app import auth
+
 from .conftest import definition, leaf
+
+TEST_PASSWORD = "Test-Password-123!"
+_DEFAULT_CLIENT = None
+_TOKENS: dict[tuple[int, str], str] = {}
+_LOCK = threading.Lock()
+
+
+def _slug(name: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+    if len(s) < 3:
+        s = (s + "-user")[:10]
+    return s[:60]
+
+
+def _login_as(client, display_name: str) -> str:
+    username = _slug(display_name)
+    r = client.post("/api/auth/register",
+                    json={"username": username, "password": TEST_PASSWORD, "display_name": display_name.strip()})
+    if r.status_code == 201:
+        user = r.json()["user"]
+        if "admin" not in user["roles"]:
+            grant = client.patch(f"/api/users/{user['id']}", json={"roles": list(auth.ROLES)})
+            assert grant.status_code == 200, grant.text
+        return r.json()["token"]
+    r = client.post("/api/auth/login", json={"username": username, "password": TEST_PASSWORD})
+    if r.status_code != 200:
+        raise RuntimeError(f"flowkit could not authenticate test actor {display_name!r}: {r.status_code} {r.text}")
+    return r.json()["token"]
 
 
 def H(actor: str) -> dict:
-    return {"X-Actor": actor}
+    if _DEFAULT_CLIENT is None:
+        raise RuntimeError("H() needs a Flow(client) constructed first in this test")
+    key = (id(_DEFAULT_CLIENT), actor.strip().lower())
+    with _LOCK:
+        token = _TOKENS.get(key)
+        if token is None:
+            token = _login_as(_DEFAULT_CLIENT, actor)
+            _TOKENS[key] = token
+    return {"Authorization": f"Bearer {token}"}
 
 
 class Flow:
     def __init__(self, client):
+        global _DEFAULT_CLIENT
         self.c = client
         self.n = 0
+        _DEFAULT_CLIENT = client
 
     # ---- scorecards
     def scorecard(self, code=None, target=8, publish=True, **version_kw) -> dict:
@@ -22,11 +77,11 @@ class Flow:
         if requires_review is not None:
             d["requires_review"] = requires_review
             d["version"].pop("requires_review", None)
-        r = self.c.post(f"/api/scorecards?publish={str(publish).lower()}", json=d)
+        r = self.c.post(f"/api/scorecards?publish={str(publish).lower()}", json=d, headers=H("Designer"))
         assert r.status_code == 201, r.text
         card = r.json()
         vid = card["versions"][0]["id"]
-        return self.c.get(f"/api/versions/{vid}").json()
+        return self.c.get(f"/api/versions/{vid}", headers=H("Designer")).json()
 
     # ---- subjects
     def subject(self, name, owner="Alice", parent=None, type_="task", **kw) -> dict:
@@ -93,7 +148,7 @@ class Flow:
             return self.act(sid, "cancel", "Lead", reason="no longer needed").json()
         self.act(sid, "submit")
         if state == "in_review":
-            return self.c.get(f"/api/submissions/{sid}").json()
+            return self.c.get(f"/api/submissions/{sid}", headers=H("Alice")).json()
         if state == "decided":
             self.judge(sid, 9)
             return self.act(sid, "decide", "Lead").json()

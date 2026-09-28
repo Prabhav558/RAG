@@ -83,6 +83,11 @@ def main(argv=None) -> int:
             except httpx.TransportError:
                 time.sleep(0.1)
         c = httpx.Client(base_url=base, timeout=60)
+        # Every endpoint now requires login (Phase 2). The database was populated via the service layer (no HTTP
+        # users exist yet), so this registration becomes the first user and is auto-admin.
+        r = c.post("/api/auth/register", json={"username": "perf-bootstrap", "password": "Perf-Bootstrap-1!",
+                                                "display_name": "Perf Harness"})
+        c.headers["Authorization"] = f"Bearer {r.json()['token']}"
         cards = c.get("/api/scorecards").json()
         aq = next(x for x in cards if x["code"] == "assessment-quality")
         vid = next(v["id"] for v in aq["versions"] if v["status"] == "published")

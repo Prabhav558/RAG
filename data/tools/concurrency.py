@@ -27,6 +27,13 @@ def main(argv=None) -> int:
     ap.add_argument("--each", type=int, default=10)
     a = ap.parse_args(argv)
     c = httpx.Client(base_url=a.url, timeout=60)
+    # Every endpoint now requires login (Phase 2). One token, shared by every worker thread.
+    r = c.post("/api/auth/register", json={"username": "concurrency-bootstrap", "password": "Concurrency-Boot-1!",
+                                            "display_name": "Concurrency Harness"})
+    token = r.json()["token"] if r.status_code == 201 else c.post(
+        "/api/auth/login", json={"username": "concurrency-bootstrap", "password": "Concurrency-Boot-1!"}
+    ).json()["token"]
+    c.headers["Authorization"] = f"Bearer {token}"
     card = next(x for x in c.get("/api/scorecards").json() if x["code"] == "assessment-quality")
     vid = next(v["id"] for v in card["versions"] if v["status"] == "published")
     errors: list[str] = []
@@ -34,7 +41,7 @@ def main(argv=None) -> int:
     lock = threading.Lock()
 
     def worker(t):
-        cl = httpx.Client(base_url=a.url, timeout=60)
+        cl = httpx.Client(base_url=a.url, timeout=60, headers={"Authorization": f"Bearer {token}"})
         for i in range(a.each):
             try:
                 ev = cl.post("/api/evaluations", json={"version_id": vid, "subject_name": f"c{t}-{i}"})

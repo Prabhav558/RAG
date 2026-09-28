@@ -1,23 +1,26 @@
 """Cycle 3 endpoints: scorecard review, subjects, submissions (quality gate), diagnosis, behaviour analytics.
 
-Workflow actions require an actor (header `X-Actor`); see docs/10_CYCLE3_BEHAVIOUR_SPEC.md.
+Workflow actions require a logged-in session (Authorization: Bearer <token>); the actor is the authenticated
+user's display name, never a client-supplied value. See docs/10_CYCLE3_BEHAVIOUR_SPEC.md and
+docs/14_PHASE2_SECURITY_SPEC.md.
 """
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import auth
 from .. import services as svc
 from .. import services_flow as flow
-from .. import workflow as wf
 from ..db import get_session
 from ..models import AuditEvent, Subject, Submission
 
 router = APIRouter(prefix="/api")
 
-
-def actor(x_actor: str | None = Header(default=None)) -> str:
-    return wf.require_actor(x_actor)
+actor = auth.actor_name
+require_designer = auth.require_role("designer")
+require_reviewer = auth.require_role("reviewer")
+require_lead = auth.require_role("lead")
 
 
 def _subject(db: Session, subject_id: int) -> Subject:
@@ -41,14 +44,15 @@ def _submission(db: Session, submission_id: int, lock: bool = False) -> Submissi
 
 @router.post("/versions/{version_id}/submit-for-review")
 def submit_for_review(version_id: int, body: flow.CommentIn, who: str = Depends(actor),
-                      db: Session = Depends(get_session)):
+                      _: object = Depends(require_designer), db: Session = Depends(get_session)):
     v = svc.load_version(db, version_id, lock=True)
     flow.submit_for_review(db, v, who, body.comment)
     return svc.version_view(v)
 
 
 @router.post("/versions/{version_id}/approve")
-def approve(version_id: int, body: flow.CommentIn, who: str = Depends(actor), db: Session = Depends(get_session)):
+def approve(version_id: int, body: flow.CommentIn, who: str = Depends(actor),
+           _: object = Depends(require_reviewer), db: Session = Depends(get_session)):
     v = svc.load_version(db, version_id, lock=True)
     flow.approve(db, v, who, body.comment)
     return svc.version_view(v)
@@ -56,14 +60,15 @@ def approve(version_id: int, body: flow.CommentIn, who: str = Depends(actor), db
 
 @router.post("/versions/{version_id}/request-changes")
 def request_changes(version_id: int, body: flow.CommentIn, who: str = Depends(actor),
-                    db: Session = Depends(get_session)):
+                    _: object = Depends(require_reviewer), db: Session = Depends(get_session)):
     v = svc.load_version(db, version_id, lock=True)
     flow.request_changes(db, v, who, body.comment)
     return svc.version_view(v)
 
 
 @router.post("/versions/{version_id}/retire")
-def retire(version_id: int, body: flow.ReasonIn, who: str = Depends(actor), db: Session = Depends(get_session)):
+def retire(version_id: int, body: flow.ReasonIn, who: str = Depends(actor),
+          _: object = Depends(require_designer), db: Session = Depends(get_session)):
     v = svc.load_version(db, version_id, lock=True)
     flow.retire(db, v, who, body.reason)
     return svc.version_view(v)
@@ -123,8 +128,8 @@ def start_submission(subject_id: int, body: flow.SubmissionIn, who: str = Depend
 
 
 @router.get("/submissions/{submission_id}")
-def get_submission(submission_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
-    return flow.submission_view(db, _submission(db, submission_id), x_actor)
+def get_submission(submission_id: int, who: str = Depends(actor), db: Session = Depends(get_session)):
+    return flow.submission_view(db, _submission(db, submission_id), who)
 
 
 @router.patch("/submissions/{submission_id}")
@@ -151,7 +156,8 @@ def withdraw(submission_id: int, who: str = Depends(actor), db: Session = Depend
 
 
 @router.post("/submissions/{submission_id}/cancel")
-def cancel(submission_id: int, body: flow.ReasonIn, who: str = Depends(actor), db: Session = Depends(get_session)):
+def cancel(submission_id: int, body: flow.ReasonIn, who: str = Depends(actor),
+          _: object = Depends(require_lead), db: Session = Depends(get_session)):
     return flow.submission_view(db, flow.cancel(db, _submission(db, submission_id, lock=True), who, body.reason), who)
 
 
@@ -177,14 +183,19 @@ def attention(threshold: int = flow.RED_THRESHOLD, window_days: int = flow.RED_W
 
 
 @router.post("/diagnoses", status_code=201)
-def record_diagnosis(body: flow.DiagnosisIn, who: str = Depends(actor), db: Session = Depends(get_session)):
+def record_diagnosis(body: flow.DiagnosisIn, who: str = Depends(actor), _: object = Depends(require_lead),
+                     db: Session = Depends(get_session)):
     d = flow.record_diagnosis(db, body, who)
     return {"id": d.id, "person": d.person, "cause": d.cause, "action": d.action}
 
 
 @router.get("/diagnoses")
-def diagnoses(person: str | None = None, db: Session = Depends(get_session)):
-    return flow.diagnoses(db, person)
+def diagnoses(person: str | None = None, who: str = Depends(actor), user=Depends(auth.get_current_user),
+             db: Session = Depends(get_session)):
+    # Diagnosis notes are sensitive personal performance data (spec §5): only lead/admin see everyone's;
+    # anyone else sees only their own, whatever `person` they ask for.
+    is_lead = "lead" in user.roles or "admin" in user.roles
+    return flow.diagnoses(db, person if is_lead else who)
 
 
 @router.get("/analytics/behaviour")

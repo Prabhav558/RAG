@@ -361,7 +361,13 @@ def update_submission(db: Session, sub: Submission, data: SubmissionUpdate, acto
 
 
 def add_evaluation(db: Session, sub: Submission, data: SubmissionEvaluationIn, actor: str) -> Evaluation:
+    """`actor` is the verified (logged-in) identity performing this call. For `human`, the recorded evaluator
+    name is always the actor's own name — a client-supplied `evaluator_name` is never trusted for a person's
+    identity (Phase 2 security fix: see docs/14_PHASE2_SECURITY_SPEC.md §4). `llm` has no person to spoof, so a
+    caller may still label which judge model/config produced it via `evaluator_name`."""
     if data.evaluator_type == "self":
+        if not wf.same_person(actor, sub.owner):
+            raise DomainError("S003", f"Only the owner ({sub.owner}) can self-appraise their own work", 403)
         if sub.status != "open":
             raise DomainError("S009", "Self-appraisal happens before submitting (submission must be open)", 409)
         if any(e.evaluator_type == "self" and e.status != "void" for e in sub.evaluations):
@@ -370,7 +376,7 @@ def add_evaluation(db: Session, sub: Submission, data: SubmissionEvaluationIn, a
     else:
         if sub.status != "in_review":
             raise DomainError("S009", "Judges can only evaluate a submission that is in review", 409)
-        name = (data.evaluator_name or ("LLM judge" if data.evaluator_type == "llm" else actor)).strip()
+        name = actor if data.evaluator_type == "human" else (data.evaluator_name or "LLM judge").strip()
         if data.evaluator_type == "human" and wf.same_person(name, sub.owner):
             raise DomainError("S003", "The owner cannot judge their own work", 403)
     ev = svc.create_evaluation(

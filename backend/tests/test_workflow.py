@@ -120,11 +120,22 @@ def test_approval_retires_previous_version(f):
 
 
 def test_actor_required(f):
+    """Phase 2: a request with no valid session never reaches workflow logic at all (401 AUTH004), rather than
+    the old 'blank X-Actor header' case (422 S002). S002 remains as defence in depth for direct, non-API callers
+    of the service layer (e.g. the data generators) — checked directly here."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.services import DomainError
+
     v = f.scorecard(publish=False)
-    r = f.c.post(f"/api/versions/{v['id']}/submit-for-review", json={})
-    assert r.status_code == 422 and r.json()["code"] == "S002"
-    r = f.c.post("/api/subjects", json={"name": "x", "subject_type": "task", "owner": "A"}, headers=H("  "))
-    assert r.json()["code"] == "S002"
+    with TestClient(app) as anon:  # deliberately no login at all
+        r = anon.post(f"/api/versions/{v['id']}/submit-for-review", json={})
+        assert r.status_code == 401 and r.json()["code"] == "AUTH004"
+
+    with pytest.raises(DomainError) as exc:
+        wf.require_actor("   ")
+    assert exc.value.code == "S002"
 
 
 # ---------------------------------------------------------------- submissions: the gate

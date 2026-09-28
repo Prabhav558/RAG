@@ -15,6 +15,8 @@ from app.main import app  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
+BOOTSTRAP_PASSWORD = "Test-Password-123!"
+
 
 @pytest.fixture()
 def db():
@@ -27,7 +29,18 @@ def db():
 
 @pytest.fixture()
 def client(db):
+    """Phase 2 made every API endpoint require login (docs/14_PHASE2_SECURITY_SPEC.md). Most existing tests
+    predate identity and don't care who is acting, so this fixture registers as the very first user of the fresh
+    database — `auth.register` always makes that user an admin — and sets it as the client's default identity.
+    Cycle 3 workflow/acceptance tests that DO care about a specific actor override this per call with an explicit
+    `headers=` (see tests/flowkit.py's `H()`) — per-call headers replace the client's default `Authorization`
+    header, they don't merge with it."""
     with TestClient(app) as c:
+        r = c.post("/api/auth/register", json={"username": "test-bootstrap", "password": BOOTSTRAP_PASSWORD,
+                                                "display_name": "Test Bootstrap"})
+        assert r.status_code == 201, r.text
+        assert "admin" in r.json()["user"]["roles"], "the first user registered on a fresh database must be admin"
+        c.headers["Authorization"] = f"Bearer {r.json()['token']}"
         yield c
 
 

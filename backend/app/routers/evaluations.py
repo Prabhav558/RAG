@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, File, Header, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import analytics
+from .. import auth
 from .. import services as svc
 from .. import workflow as wf
 from ..db import get_session
@@ -56,29 +57,29 @@ def create_evaluation(body: EvaluationCreate, db: Session = Depends(get_session)
 
 
 @router.get("/evaluations/{evaluation_id}")
-def get_evaluation(evaluation_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+def get_evaluation(evaluation_id: int, who: str = Depends(auth.actor_name), db: Session = Depends(get_session)):
     ev = _evaluation(db, evaluation_id)
-    if ev.submission is not None and ev.evaluator_type == "self" and not wf.same_person(x_actor, ev.submission.owner):
+    if ev.submission is not None and ev.evaluator_type == "self" and not wf.same_person(who, ev.submission.owner):
         raise svc.DomainError("S011", f"This self-appraisal is private to {ev.submission.owner}", 403)
     return svc.evaluation_view(ev)
 
 
 @router.put("/evaluations/{evaluation_id}")
-def update_evaluation(evaluation_id: int, body: EvaluationUpdate, x_actor: str | None = Header(default=None),
+def update_evaluation(evaluation_id: int, body: EvaluationUpdate, who: str = Depends(auth.actor_name),
                       db: Session = Depends(get_session)):
     ev = _evaluation(db, evaluation_id)
-    _check_editor(ev, x_actor)
+    _check_editor(ev, who)
     return svc.evaluation_view(svc.apply_update(db, ev, body))
 
 
 @router.post("/evaluations/{evaluation_id}/documents", status_code=201)
-async def upload_document(evaluation_id: int, file: UploadFile = File(...), x_actor: str | None = Header(default=None),
+async def upload_document(evaluation_id: int, file: UploadFile = File(...), who: str = Depends(auth.actor_name),
                           db: Session = Depends(get_session)):
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise svc.DomainError("E015", "File is larger than 20 MB")
     ev = _evaluation(db, evaluation_id)
-    _check_editor(ev, x_actor)
+    _check_editor(ev, who)
     svc.add_document(db, ev, file.filename or "upload", file.content_type, data)
     return svc.evaluation_view(ev)
 
@@ -122,9 +123,9 @@ def run_llm_judge(evaluation_id: int, db: Session = Depends(get_session), judge:
 
 
 @router.post("/evaluations/{evaluation_id}/complete")
-def complete(evaluation_id: int, x_actor: str | None = Header(default=None), db: Session = Depends(get_session)):
+def complete(evaluation_id: int, who: str = Depends(auth.actor_name), db: Session = Depends(get_session)):
     ev = _evaluation(db, evaluation_id)
-    _check_editor(ev, x_actor)
+    _check_editor(ev, who)
     return svc.evaluation_view(svc.complete_evaluation(db, ev))
 
 

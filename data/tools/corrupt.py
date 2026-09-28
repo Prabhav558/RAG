@@ -402,6 +402,17 @@ def classify(case: Case, r: Response) -> str:
     return "PASS" if r.codes & case.expected else "WRONG_CODE"
 
 
+def _bootstrap_login(client) -> None:
+    """Every endpoint now requires login (Phase 2). Register (or log in) a superuser and make it the client's
+    default identity, so every case below reaches its intended validation logic instead of a 401. `auth.register`
+    always makes the first user on a fresh database an admin."""
+    r = client.post("/api/auth/register", json={"username": "corrupt-bootstrap", "password": "Corrupt-Bootstrap-1!",
+                                                 "display_name": "Corruption Harness"})
+    if r.status_code != 201:
+        r = client.post("/api/auth/login", json={"username": "corrupt-bootstrap", "password": "Corrupt-Bootstrap-1!"})
+    client.headers["Authorization"] = f"Bearer {r.json()['token']}"
+
+
 def run_all(client=None) -> list[dict]:
     """Run every case against a fresh database. Returns one row per case."""
     own = client is None
@@ -414,6 +425,7 @@ def run_all(client=None) -> list[dict]:
 
         client = TestClient(app, raise_server_exceptions=False)
         client.__enter__()
+    _bootstrap_login(client)
     ctx = Ctx(client)
     for f in sorted((ROOT / "data" / "scorecards").glob("*.json")):
         d = json.loads(f.read_text())

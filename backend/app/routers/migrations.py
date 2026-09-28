@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
+from .. import auth
 from .. import migration as mig
 from .. import services as svc
 from ..db import get_session
 
 router = APIRouter(prefix="/api/migrations")
+require_importer = auth.require_role("importer")
 
 MAX_BYTES = 20 * 1024 * 1024
 
@@ -50,6 +52,7 @@ async def commit(
     fill_missing_guidelines: bool = Form(True),
     publish: bool = Form(True),
     code: str | None = Form(None),
+    _: object = Depends(require_importer),
     db: Session = Depends(get_session),
 ):
     m = mig.plan(db, await _read(files), _options(rescale_to, subject_type, fill_missing_guidelines, publish, code))

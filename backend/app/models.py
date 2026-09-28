@@ -464,6 +464,43 @@ class Diagnosis(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class UserAccount(Base):
+    """A login. `display_name` is the identity used everywhere workflow rules and audit trails show an actor."""
+
+    __tablename__ = "user_account"
+    __table_args__ = (Index("ix_user_account_username", "username", unique=True),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(60), unique=True)
+    email: Mapped[str | None] = mapped_column(String(200), unique=True)
+    display_name: Mapped[str] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(String(200))
+    roles: Mapped[list] = mapped_column(JSON, default=list)  # subset of admin/designer/reviewer/lead/importer
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    sessions: Mapped[list["AuthSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class AuthSession(Base):
+    """A logged-in session. Only the SHA-256 of the bearer token is stored."""
+
+    __tablename__ = "auth_session"
+    __table_args__ = (Index("ix_auth_session_token_hash", "token_hash", unique=True),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[UserAccount] = relationship(back_populates="sessions")
+
+
 class AuditEvent(Base):
     """Every state transition, with who did it and why."""
 
