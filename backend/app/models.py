@@ -471,6 +471,25 @@ class Diagnosis(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class Capability(Base):
+    """A person's assessed C1-C6 capability/competency level for a scorecard's skill domain (framework §12): a
+    six-rung ladder from novice to expert. Append-only, like Diagnosis — the current level for a person and
+    scorecard is the most recent row, so the assessment history is never lost to an overwrite."""
+
+    __tablename__ = "capability"
+    __table_args__ = (CheckConstraint("level between 1 and 6", name="ck_capability_level"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    person: Mapped[str] = mapped_column(String(120), index=True)
+    scorecard_id: Mapped[int] = mapped_column(ForeignKey("scorecard.id"))
+    level: Mapped[int] = mapped_column(Integer)
+    notes: Mapped[str | None] = mapped_column(Text)
+    set_by: Mapped[str] = mapped_column(String(120))
+    set_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    scorecard: Mapped["Scorecard"] = relationship()
+
+
 class UserAccount(Base):
     """A login. `display_name` is the identity used everywhere workflow rules and audit trails show an actor."""
 

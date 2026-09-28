@@ -216,6 +216,22 @@ def diagnoses(person: str | None = None, who: str = Depends(actor), user=Depends
     return flow.diagnoses(db, person if is_lead else who)
 
 
+@router.post("/capabilities", status_code=201)
+def record_capability(body: flow.CapabilityIn, who: str = Depends(actor), _: object = Depends(require_lead),
+                      db: Session = Depends(get_session)):
+    c = flow.record_capability(db, body, who)
+    return {"id": c.id, "person": c.person, "level": c.level, "level_label": flow.LEVEL_LABELS[c.level]}
+
+
+@router.get("/capabilities")
+def capabilities(person: str | None = None, current: bool = False, who: str = Depends(actor),
+                 user=Depends(auth.get_current_user), db: Session = Depends(get_session)):
+    # Same privacy rule as diagnoses: a capability assessment is personal performance data.
+    is_lead = "lead" in user.roles or "admin" in user.roles
+    target = person if is_lead else who
+    return flow.current_capabilities(db, target) if current else flow.capabilities(db, target)
+
+
 @router.get("/analytics/behaviour")
 def behaviour(db: Session = Depends(get_session)):
     return {"gates": flow.gate_outcomes(db), "self_appraisal": flow.self_appraisal_gap(db),

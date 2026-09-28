@@ -20,9 +20,11 @@ from . import services as svc
 from . import workflow as wf
 from .models import (
     AuditEvent,
+    Capability,
     Diagnosis,
     Evaluation,
     ParameterResult,
+    Scorecard,
     ScorecardVersion,
     Subject,
     SubjectType,
@@ -105,6 +107,16 @@ class DiagnosisIn(Contract):
     action: str = Field(pattern=r"^(train|reassign|discuss|rescope|none)$")
     notes: str | None = Field(default=None, max_length=TEXT_MAX)
     submission_id: int | None = None
+
+
+LEVEL_LABELS = {1: "Unaware", 2: "Aware", 3: "Developing", 4: "Competent", 5: "Proficient", 6: "Expert"}
+
+
+class CapabilityIn(Contract):
+    person: str = Field(min_length=1, max_length=120)
+    scorecard: str  # scorecard.code — the skill domain this level applies to
+    level: int = Field(ge=1, le=6)
+    notes: str | None = Field(default=None, max_length=TEXT_MAX)
 
 
 # ---------------------------------------------------------------- scorecard review
@@ -626,6 +638,44 @@ def diagnoses(db: Session, person: str | None = None) -> list[dict]:
     return [{"id": d.id, "person": d.person, "cause": d.cause, "action": d.action, "notes": d.notes,
              "submission_id": d.submission_id, "recorded_by": d.recorded_by, "recorded_at": d.recorded_at}
             for d in db.scalars(q)]
+
+
+# ---------------------------------------------------------------- capability & competency (C1-C6)
+
+
+def record_capability(db: Session, data: CapabilityIn, actor: str) -> Capability:
+    if wf.same_person(actor, data.person):
+        raise DomainError("S003", "A capability level is recorded by a lead, not by the person themselves", 403)
+    sc = db.scalar(select(Scorecard).where(Scorecard.code == data.scorecard))
+    if not sc:
+        raise DomainError("E008", f"Unknown scorecard '{data.scorecard}'")
+    c = Capability(person=data.person.strip(), scorecard_id=sc.id, level=data.level, notes=data.notes, set_by=actor)
+    db.add(c)
+    db.flush()
+    wf.audit(db, "capability", c.id, "record", actor,
+             details={"person": c.person, "scorecard": sc.code, "level": c.level})
+    db.commit()
+    return c
+
+
+def capabilities(db: Session, person: str | None = None) -> list[dict]:
+    """Full assessment history, newest first. The current level for a person and scorecard is the first row
+    matching that pair — history is kept, never overwritten (mirrors `diagnoses`)."""
+    q = select(Capability).order_by(Capability.set_at.desc()).options(selectinload(Capability.scorecard))
+    if person:
+        q = q.where(Capability.person.ilike(person))
+    return [{"id": c.id, "person": c.person, "scorecard": c.scorecard.code, "scorecard_name": c.scorecard.name,
+             "level": c.level, "level_label": LEVEL_LABELS[c.level], "notes": c.notes, "set_by": c.set_by,
+             "set_at": c.set_at}
+            for c in db.scalars(q)]
+
+
+def current_capabilities(db: Session, person: str | None = None) -> list[dict]:
+    """One row per (person, scorecard): each pair's most recently assessed level."""
+    seen: dict[tuple[str, str], dict] = {}
+    for row in capabilities(db, person):  # already newest-first, so the first hit per pair is current
+        seen.setdefault((row["person"], row["scorecard"]), row)
+    return list(seen.values())
 
 
 # ---------------------------------------------------------------- behaviour analytics

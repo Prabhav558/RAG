@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 from app.auth import hash_password, verify_password
 from app.main import app
 
+from .conftest import definition
+
 PW = "Correct-Horse-1!"
 
 
@@ -246,3 +248,28 @@ def test_diagnosis_notes_are_private_to_lead_and_the_person(client):
     other = _as("diag-bob", "Bob D")(client)
     as_bob = client.get("/api/diagnoses", headers=other).json()
     assert as_bob == []
+
+
+def test_capability_level_is_private_to_lead_and_the_person(client):
+    card = client.post("/api/scorecards", json=definition(code="cap-privacy-card")).json()
+
+    a = _as("cap-alice", "Alice C")(client)
+    lead = register(client, "cap-lead", "Lead C")
+    lead_headers = {"Authorization": f"Bearer {lead.json()['token']}"}
+    client.patch(f"/api/users/{lead.json()['user']['id']}", json={"roles": ["lead"]})
+
+    client.post("/api/capabilities", json={"person": "Alice C", "scorecard": card["code"], "level": 3},
+               headers=lead_headers)
+    as_alice = client.get("/api/capabilities", headers=a).json()
+    assert len(as_alice) == 1 and as_alice[0]["level"] == 3 and as_alice[0]["level_label"] == "Developing"
+    other = _as("cap-bob", "Bob C")(client)
+    as_bob = client.get("/api/capabilities?person=Alice C", headers=other).json()
+    assert as_bob == []
+
+
+def test_member_cannot_record_capability(client):
+    card = client.post("/api/scorecards", json=definition(code="cap-member-card")).json()
+    headers = _as("cap-member", "Member C")(client)
+    r = client.post("/api/capabilities", json={"person": "Someone", "scorecard": card["code"], "level": 3},
+                    headers=headers)
+    assert r.status_code == 403 and r.json()["code"] == "AUTH006"

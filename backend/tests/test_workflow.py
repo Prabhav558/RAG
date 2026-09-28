@@ -400,6 +400,47 @@ def test_attention_list_and_diagnosis(f):
     assert f.c.post("/api/diagnoses", json=bad, headers=H("Lead")).status_code == 422
 
 
+# ---------------------------------------------------------------- capability & competency (C1-C6)
+
+
+def test_capability_level_can_be_recorded_and_needs_a_lead(f):
+    """RBAC privacy (only lead/admin sees someone else's level) has its own test in test_auth.py — flowkit's H()
+    grants every test actor every role, so it can't exercise that distinction; this checks the S003 identity
+    guard and the recorded shape instead."""
+    v = f.scorecard()
+    body = {"person": "Eve", "scorecard": v["scorecard_code"], "level": 4, "notes": "Independent on this now"}
+    assert f.c.post("/api/capabilities", json=body, headers=H("Eve")).json()["code"] == "S003"
+    r = f.c.post("/api/capabilities", json=body, headers=H("Lead"))
+    assert r.status_code == 201
+    assert r.json() == {"id": r.json()["id"], "person": "Eve", "level": 4, "level_label": "Competent"}
+
+    mine = f.c.get("/api/capabilities", headers=H("Eve")).json()
+    assert len(mine) == 1 and mine[0]["level_label"] == "Competent" and mine[0]["set_by"] == "Lead"
+
+
+def test_capability_level_is_rejected_outside_one_to_six(f):
+    v = f.scorecard()
+    bad = {"person": "Eve", "scorecard": v["scorecard_code"], "level": 7}
+    assert f.c.post("/api/capabilities", json=bad, headers=H("Lead")).status_code == 422
+
+
+def test_capability_history_collapses_to_current_per_scorecard(f):
+    v1 = f.scorecard()
+    v2 = f.scorecard()
+    for level in (2, 3, 5):  # three successive assessments on the same scorecard
+        f.c.post("/api/capabilities", json={"person": "Eve", "scorecard": v1["scorecard_code"], "level": level},
+                 headers=H("Lead"))
+    f.c.post("/api/capabilities", json={"person": "Eve", "scorecard": v2["scorecard_code"], "level": 1},
+             headers=H("Lead"))
+
+    history = f.c.get("/api/capabilities?person=Eve", headers=H("Lead")).json()
+    assert len(history) == 4  # nothing was overwritten
+
+    current = f.c.get("/api/capabilities?person=Eve&current=true", headers=H("Lead")).json()
+    by_card = {c["scorecard"]: c["level"] for c in current}
+    assert by_card == {v1["scorecard_code"]: 5, v2["scorecard_code"]: 1}
+
+
 def test_behaviour_analytics(f):
     v = f.scorecard(required_judges=2, judge_tolerance_pct=50)
     s = f.subject("T")

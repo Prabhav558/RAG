@@ -62,5 +62,5 @@ flowchart LR
 | SSO / authorisation | `app/auth.py` (session + RBAC), routers gated by `Depends(auth.get_current_user)` | Done — see docs/14_PHASE2_SECURITY_SPEC.md |
 | Another LLM or judging strategy | `judge.Judge` protocol | Done (Cycle 1) |
 | ODTQRC task definition | `objective`/`deliverable`/`quality_bar`/`risks` on `subject` (+ existing `due_at`/`budget`) and a clarity agent (`app/clarity.py`, same swappable-strategy shape as `judge.Judge`); `POST /api/subjects/{id}/clarity-check` | Done |
-| Capability & competency (C1–C6) | People dimension keyed by owner/judge names already stored | Not started |
+| Capability & competency (C1–C6) | `Capability` model: person + scorecard + level (1–6, novice→expert), append-only like `Diagnosis`; `POST`/`GET /api/capabilities` (lead-gated write, same privacy rule as diagnoses) | Done |
 | Predictive analytics | Read models over `submission` + `audit_event` | Not started |
