@@ -50,7 +50,7 @@ def actions(machine: str, state: str) -> list[str]:
 def require_actor(actor: str | None) -> str:
     actor = (actor or "").strip()
     if not actor:
-        raise DomainError("S002", "This action needs an actor: set the X-Actor header ('Acting as' in the UI)", 422)
+        raise DomainError("S002", "This action needs an actor: log in first", 422)
     return actor[:120]
 
 

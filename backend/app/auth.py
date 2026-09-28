@@ -62,6 +62,12 @@ def _new_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# A fixed hash to verify against when the username doesn't exist, so login() takes the same time either way and
+# an attacker can't enumerate valid usernames by measuring response latency (a real password hash always costs
+# PBKDF2_ITERATIONS of CPU time; skipping that work for unknown usernames would leak which usernames are real).
+_DUMMY_HASH = hash_password(secrets.token_hex(16))
+
+
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -130,7 +136,10 @@ def login(db: Session, data: LoginIn) -> tuple[UserAccount, str]:
     user = db.scalar(select(UserAccount).where(UserAccount.username == data.username.strip().lower()))
     if user and user.locked_until and _aware(user.locked_until) > now():
         raise DomainError("AUTH002", "Account locked after too many failed attempts; try again later", 423)
-    if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+    # Always run a real PBKDF2 verification, even for an unknown username (against a fixed dummy hash), so the
+    # response time doesn't reveal whether the username exists.
+    password_ok = verify_password(data.password, user.password_hash if user else _DUMMY_HASH)
+    if not user or not user.is_active or not password_ok:
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= LOGIN_MAX_ATTEMPTS:

@@ -776,7 +776,7 @@ def complete_evaluation(db: Session, ev: Evaluation, commit: bool = True) -> Eva
 def void_evaluation(db: Session, ev: Evaluation, reason: str) -> Evaluation:
     if ev.status == "void":
         raise DomainError("E006", "Evaluation is already void", 409)
-    ev.status, ev.voided_reason = "void", reason
+    ev.status, ev.voided_reason, ev.voided_at = "void", reason, now()
     db.commit()
     return ev
 

@@ -279,6 +279,7 @@ class Evaluation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     voided_reason: Mapped[str | None] = mapped_column(Text)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     subject_id: Mapped[int | None] = mapped_column(ForeignKey("subject.id"))
     submission_id: Mapped[int | None] = mapped_column(ForeignKey("submission.id"))

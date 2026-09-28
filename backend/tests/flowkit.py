@@ -68,6 +68,11 @@ class Flow:
         self.c = client
         self.n = 0
         _DEFAULT_CLIENT = client
+        # Each test wipes and recreates the database (see conftest.py's `db` fixture), so tokens cached against a
+        # previous test's client are worthless here even if `id(client)` happens to collide with a garbage-
+        # collected earlier client (Python reuses ids). One Flow is built per test, so this is the right place to
+        # drop anything left over.
+        _TOKENS.clear()
 
     # ---- scorecards
     def scorecard(self, code=None, target=8, publish=True, **version_kw) -> dict:
