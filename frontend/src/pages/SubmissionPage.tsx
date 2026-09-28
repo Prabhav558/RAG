@@ -73,7 +73,6 @@ export default function SubmissionPage() {
         </div>
       </div>
       <ErrorBox error={error} />
-      {!actor && <div className="alert warn">Set “Acting as” in the sidebar: workflow actions are recorded under that name.</div>}
 
       <div className="eval-layout">
         <div>

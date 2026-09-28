@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import "./styles.css";
+import { restoreSession } from "./api";
 import Library from "./pages/Library";
 import Builder from "./pages/Builder";
 import NewEvaluation from "./pages/NewEvaluation";
@@ -13,9 +14,12 @@ import Work from "./pages/Work";
 import SubjectPage from "./pages/SubjectPage";
 import SubmissionPage from "./pages/SubmissionPage";
 import Attention from "./pages/Attention";
-import { ActingAs } from "./components/common";
+import Login from "./pages/Login";
+import Users from "./pages/Users";
+import { hasRole, LoggedInAs, useAuth } from "./components/common";
 
-function App() {
+function Shell() {
+  const { user } = useAuth();
   return (
     <div className="shell">
       <nav className="nav">
@@ -23,7 +27,7 @@ function App() {
           Scorecard Studio
           <small>Create · Rate · Improve</small>
         </div>
-        <ActingAs />
+        <LoggedInAs />
         <div className="section">Design</div>
         <NavLink to="/" end>Scorecard library</NavLink>
         <NavLink to="/import">Import legacy</NavLink>
@@ -35,6 +39,12 @@ function App() {
         <NavLink to="/evaluations">Evaluations</NavLink>
         <div className="section">Learn</div>
         <NavLink to="/analytics">Analytics</NavLink>
+        {hasRole(user, "admin") && (
+          <>
+            <div className="section">Admin</div>
+            <NavLink to="/users">Users &amp; roles</NavLink>
+          </>
+        )}
       </nav>
       <main className="main">
         <Routes>
@@ -49,11 +59,20 @@ function App() {
           <Route path="/subjects/:subjectId" element={<SubjectPage />} />
           <Route path="/submissions/:submissionId" element={<SubmissionPage />} />
           <Route path="/attention" element={<Attention />} />
+          <Route path="/users" element={<Users />} />
           <Route path="*" element={<div className="empty">Page not found</div>} />
         </Routes>
       </main>
     </div>
   );
+}
+
+function App() {
+  const { user } = useAuth();
+  const [checking, setChecking] = useState(true);
+  useEffect(() => { restoreSession().finally(() => setChecking(false)); }, []);
+  if (checking) return <div className="empty">Loading…</div>;
+  return user ? <Shell /> : <Login />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

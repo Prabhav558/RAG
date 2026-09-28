@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, fmt, ScorecardSummary, SubjectDetail } from "../api";
+import { api, ClarityResult, fmt, ScorecardSummary, SubjectDetail } from "../api";
 import { ErrorBox, Field, RollupPill, SUBMISSION_LABEL, when } from "../components/common";
+
+const FIELD_LABELS: Record<string, string> = {
+  objective: "Objective", deliverable: "Deliverable", time: "Time", quality: "Quality", risk: "Risk", cost: "Cost",
+};
 
 export default function SubjectPage() {
   const { subjectId } = useParams();
@@ -12,9 +16,23 @@ export default function SubjectPage() {
   const [versionId, setVersionId] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [editing, setEditing] = useState(false);
+  const [clarity, setClarity] = useState<ClarityResult | null>(null);
+  const [checkingClarity, setCheckingClarity] = useState(false);
   const load = useCallback(() => api.subject(id).then(setS).catch(setError), [id]);
   useEffect(() => { load(); api.scorecards().then(setCards); }, [load]);
   if (!s) return <>{error ? <ErrorBox error={error} /> : <div className="empty">Loading…</div>}</>;
+
+  async function checkClarity() {
+    setCheckingClarity(true);
+    setError(null);
+    try {
+      setClarity(await api.clarityCheck(id));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setCheckingClarity(false);
+    }
+  }
 
   const published = cards.flatMap((c) => c.versions.filter((v) => v.status === "published").map((v) => ({ c, v })));
 
@@ -50,6 +68,36 @@ export default function SubjectPage() {
       )}
       {editing && <EditSubject s={s} onDone={() => { setEditing(false); load(); }} />}
 
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <h2>Task definition (ODTQRC)</h2>
+          <button className="sm" disabled={checkingClarity} onClick={checkClarity}>
+            {checkingClarity ? "Checking…" : "Check clarity"}
+          </button>
+        </div>
+        <p className="hint">Objective, Deliverable, Time, Quality, Risk, Cost — the six things worth writing down before work starts.</p>
+        <dl className="kv">
+          <dt>Objective</dt><dd>{s.objective || "—"}</dd>
+          <dt>Deliverable</dt><dd>{s.deliverable || "—"}</dd>
+          <dt>Time</dt><dd>{when(s.due_at)}</dd>
+          <dt>Quality</dt><dd>{s.quality_bar || "—"}</dd>
+          <dt>Risk</dt><dd>{s.risks || "—"}</dd>
+          <dt>Cost</dt><dd>{s.budget ?? "—"}</dd>
+        </dl>
+        {clarity && (
+          <div className={`alert ${clarity.is_clear ? "ok" : "warn"}`} style={{ marginTop: 10 }}>
+            <b>{clarity.is_clear ? "Looks clear." : "Could be clearer:"}</b> {clarity.summary}
+            {clarity.issues.length > 0 && (
+              <ul>
+                {clarity.issues.map((iss, i) => (
+                  <li key={i}><b>{FIELD_LABELS[iss.field] ?? iss.field}:</b> {iss.problem} — <i>{iss.suggestion}</i></li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="grid two">
         <div className="card">
           <h2>Start a submission</h2>
@@ -62,8 +110,6 @@ export default function SubjectPage() {
           </Field>
           <button className="primary" disabled={!versionId} onClick={start}>Start</button>
           <dl className="kv" style={{ marginTop: 14 }}>
-            <dt>Due</dt><dd>{when(s.due_at)}</dd>
-            <dt>Budget</dt><dd>{s.budget ?? "—"}</dd>
             <dt>Beneath</dt><dd>{Object.entries(s.descendant_counts).map(([k, v]) => `${v} ${k.replace("_", " ")}`).join(" · ") || "—"}</dd>
           </dl>
         </div>
@@ -109,10 +155,18 @@ function EditSubject({ s, onDone }: { s: SubjectDetail; onDone: () => void }) {
   const [owner, setOwner] = useState(s.owner);
   const [due, setDue] = useState(s.due_at ? s.due_at.slice(0, 16) : "");
   const [budget, setBudget] = useState(s.budget === null ? "" : String(s.budget));
+  const [objective, setObjective] = useState(s.objective ?? "");
+  const [deliverable, setDeliverable] = useState(s.deliverable ?? "");
+  const [qualityBar, setQualityBar] = useState(s.quality_bar ?? "");
+  const [risks, setRisks] = useState(s.risks ?? "");
   const [error, setError] = useState<unknown>(null);
   async function save() {
     try {
-      await api.updateSubject(s.id, { owner, due_at: due ? new Date(due).toISOString() : null, budget: budget === "" ? null : Number(budget) });
+      await api.updateSubject(s.id, {
+        owner, due_at: due ? new Date(due).toISOString() : null, budget: budget === "" ? null : Number(budget),
+        objective: objective || null, deliverable: deliverable || null, quality_bar: qualityBar || null,
+        risks: risks || null,
+      });
       onDone();
     } catch (e) {
       setError(e);
@@ -123,8 +177,24 @@ function EditSubject({ s, onDone }: { s: SubjectDetail; onDone: () => void }) {
       <ErrorBox error={error} />
       <div className="form-grid">
         <Field label="Owner"><input value={owner} onChange={(e) => setOwner(e.target.value)} /></Field>
-        <Field label="Due"><input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
-        <Field label="Budget"><input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></Field>
+        <Field label="Time (due)"><input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
+        <Field label="Cost (budget)"><input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></Field>
+      </div>
+      <div className="form-grid">
+        <Field label="Objective" hint="What success looks like, specifically enough that two people would agree it happened.">
+          <textarea rows={2} value={objective} onChange={(e) => setObjective(e.target.value)} />
+        </Field>
+        <Field label="Deliverable" hint="The concrete output, not the activity.">
+          <textarea rows={2} value={deliverable} onChange={(e) => setDeliverable(e.target.value)} />
+        </Field>
+      </div>
+      <div className="form-grid">
+        <Field label="Quality" hint="The measurable standard — what would make it pass a check, not just look good.">
+          <textarea rows={2} value={qualityBar} onChange={(e) => setQualityBar(e.target.value)} />
+        </Field>
+        <Field label="Risk" hint="What could stop this finishing on time and to standard.">
+          <textarea rows={2} value={risks} onChange={(e) => setRisks(e.target.value)} />
+        </Field>
       </div>
       <div className="row"><button className="primary" onClick={save}>Save</button><button onClick={onDone}>Cancel</button></div>
     </div>

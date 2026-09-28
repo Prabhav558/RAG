@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { ApiError, Band, getActor, RollupStatus, Scale, bandFor, fmt, setActor } from "../api";
+import { ApiError, AuthUser, Band, RollupStatus, Scale, bandFor, fmt, getUser, logout, subscribeAuth } from "../api";
 
 export function ScoreBadge({ score, scale, size }: { score: number | null | undefined; scale: Scale; size?: "lg" }) {
   const band = bandFor(score, scale);
@@ -96,29 +96,34 @@ export const SUBMISSION_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-export function ActingAs() {
-  const [name, setName] = useState(getActor());
-  useEffect(() => {
-    const h = () => setName(getActor());
-    window.addEventListener("actor-changed", h);
-    return () => window.removeEventListener("actor-changed", h);
-  }, []);
-  return (
-    <label className="acting-as" title="Workflow actions are recorded under this name (Phase 1 has no login)">
-      <span>Acting as</span>
-      <input value={name} placeholder="your name" onChange={(e) => { setName(e.target.value); setActor(e.target.value.trim()); }} />
-    </label>
-  );
+/** The authenticated user, live-updated on login/logout (Phase 2: docs/14_PHASE2_SECURITY_SPEC.md). */
+export function useAuth(): { user: AuthUser | null } {
+  const [user, setUser] = useState(getUser());
+  useEffect(() => subscribeAuth(() => setUser(getUser())), []);
+  return { user };
 }
 
+/** Workflow actions are recorded under this name — always the authenticated user's, never client-asserted. */
 export function useActor(): string {
-  const [name, setName] = useState(getActor());
-  useEffect(() => {
-    const h = () => setName(getActor());
-    window.addEventListener("actor-changed", h);
-    return () => window.removeEventListener("actor-changed", h);
-  }, []);
-  return name;
+  return useAuth().user?.display_name ?? "";
+}
+
+export function hasRole(user: AuthUser | null, role: string): boolean {
+  return !!user && (user.roles.includes("admin") || user.roles.includes(role));
+}
+
+export function LoggedInAs() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="acting-as">
+      <span>Logged in as</span>
+      <div className="row" style={{ alignItems: "baseline", justifyContent: "space-between" }}>
+        <b title={user.roles.length ? user.roles.join(", ") : "member"}>{user.display_name}</b>
+        <button className="sm" onClick={() => logout()}>Log out</button>
+      </div>
+    </div>
+  );
 }
 
 export function when(d: string | null | undefined): string {

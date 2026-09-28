@@ -331,8 +331,52 @@ export interface SubmissionRow {
 export interface SubjectDetail extends SubjectNode {
   path: { id: number; name: string; code: string }[];
   description: string | null;
+  objective: string | null;
+  deliverable: string | null;
+  quality_bar: string | null;
+  risks: string | null;
   blocked_by: { id: number; name: string }[];
   submissions: SubmissionRow[];
+}
+
+// ---- ODTQRC clarity agent (docs/12_ARCHITECTURE.md) ----
+export interface ClarityIssue {
+  field: "objective" | "deliverable" | "time" | "quality" | "risk" | "cost";
+  problem: string;
+  suggestion: string;
+}
+export interface ClarityResult {
+  model: string;
+  is_clear: boolean;
+  summary: string;
+  issues: ClarityIssue[];
+}
+
+// ---- capability & competency (C1-C6) ----
+export interface CapabilityRow {
+  id: number;
+  person: string;
+  scorecard: string;
+  scorecard_name: string;
+  level: number;
+  level_label: string;
+  notes: string | null;
+  set_by: string;
+  set_at: string;
+}
+
+// ---- predictive & prescriptive risk forecast ----
+export interface RiskRow {
+  submission_id: number;
+  subject_id: number;
+  subject_name: string;
+  scorecard: string;
+  owner: string;
+  status: string;
+  score: number;
+  band: "green" | "amber" | "red";
+  factors: string[];
+  recommended_action: string;
 }
 export interface AuditEntry {
   action: string;
@@ -396,35 +440,97 @@ export class ApiError extends Error {
   }
 }
 
-const ACTOR_KEY = "scorecard-studio.actor";
+// ---- authentication (Phase 2: docs/14_PHASE2_SECURITY_SPEC.md) ----
+// Replaces the old free-text "Acting as" / X-Actor header with a real login: a bearer token, stored here, sent
+// on every request, verified server-side against a session record.
 
-export function getActor(): string {
+export interface AuthUser {
+  id: number;
+  username: string;
+  display_name: string;
+  email: string | null;
+  roles: string[];
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+const TOKEN_KEY = "scorecard-studio.token";
+let currentUser: AuthUser | null = null;
+
+function getToken(): string {
   try {
-    return localStorage.getItem(ACTOR_KEY) ?? "";
+    return localStorage.getItem(TOKEN_KEY) ?? "";
   } catch {
     return "";
   }
 }
 
-export function setActor(name: string) {
+function setSession(token: string, user: AuthUser | null) {
   try {
-    localStorage.setItem(ACTOR_KEY, name);
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
   } catch {
-    /* storage unavailable: the name lives for this page only */
+    /* storage unavailable: the session lives for this page only */
   }
-  window.dispatchEvent(new Event("actor-changed"));
+  currentUser = user;
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
+export function getUser(): AuthUser | null {
+  return currentUser;
+}
+
+export function subscribeAuth(fn: () => void): () => void {
+  window.addEventListener("auth-changed", fn);
+  return () => window.removeEventListener("auth-changed", fn);
+}
+
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const r = await request<{ token: string; user: AuthUser }>("POST", "/api/auth/login", { username, password });
+  setSession(r.token, r.user);
+  return r.user;
+}
+
+export async function register(b: { username: string; password: string; display_name: string; email?: string }): Promise<AuthUser> {
+  const r = await request<{ token: string; user: AuthUser }>("POST", "/api/auth/register", b);
+  setSession(r.token, r.user);
+  return r.user;
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await request("POST", "/api/auth/logout");
+  } catch {
+    /* the session may already be gone server-side; clear it locally regardless */
+  }
+  setSession("", null);
+}
+
+/** Called once at startup: if a token is stored, confirm it still works and load the current user. */
+export async function restoreSession(): Promise<AuthUser | null> {
+  if (!getToken()) return null;
+  try {
+    const u = await request<AuthUser>("GET", "/api/auth/me");
+    setSession(getToken(), u);
+    return u;
+  } catch {
+    setSession("", null);
+    return null;
+  }
 }
 
 async function request<T>(method: string, url: string, body?: unknown, isForm = false): Promise<T> {
   const headers: Record<string, string> = {};
   if (body && !isForm) headers["Content-Type"] = "application/json";
-  const actor = getActor();
-  if (actor) headers["X-Actor"] = actor;
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(url, {
     method,
     headers,
     body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
   });
+  if (res.status === 401 && currentUser) setSession("", null); // session expired/revoked server-side: log out here too
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -510,9 +616,13 @@ export const api = {
 
   subjects: () => request<SubjectNode[]>("GET", "/api/subjects"),
   subject: (id: number) => request<SubjectDetail>("GET", `/api/subjects/${id}`),
-  createSubject: (b: { name: string; subject_type: string; owner: string; parent_id?: number | null; description?: string; due_at?: string | null; budget?: number | null }) =>
-    request<SubjectNode>("POST", "/api/subjects", b),
+  createSubject: (b: {
+    name: string; subject_type: string; owner: string; parent_id?: number | null; description?: string;
+    due_at?: string | null; budget?: number | null;
+    objective?: string | null; deliverable?: string | null; quality_bar?: string | null; risks?: string | null;
+  }) => request<SubjectNode>("POST", "/api/subjects", b),
   updateSubject: (id: number, b: Record<string, unknown>) => request<SubjectNode>("PATCH", `/api/subjects/${id}`, b),
+  clarityCheck: (subjectId: number) => request<ClarityResult>("POST", `/api/subjects/${subjectId}/clarity-check`),
   startSubmission: (subjectId: number, b: { version_id: number; title?: string; input_text?: string }) =>
     request<SubmissionView>("POST", `/api/subjects/${subjectId}/submissions`, b),
   submissions: (q: { subject_id?: number; status?: string; owner?: string } = {}) => {
@@ -536,6 +646,11 @@ export const api = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   behaviour: () => request<any>("GET", "/api/analytics/behaviour"),
 
+  capabilities: (person?: string) => request<CapabilityRow[]>("GET", `/api/capabilities${person ? `?person=${encodeURIComponent(person)}` : ""}`),
+  recordCapability: (b: { person: string; scorecard: string; level: number; notes?: string }) =>
+    request<{ id: number; person: string; level: number; level_label: string }>("POST", "/api/capabilities", b),
+  riskForecast: () => request<RiskRow[]>("GET", "/api/analytics/risk-forecast"),
+
   migrate: (mode: "preview" | "commit", files: File[], opts: Record<string, string | boolean>) => {
     const f = new FormData();
     files.forEach((x) => f.append("files", x));
@@ -551,7 +666,14 @@ export const api = {
   agreement: (scorecard_id?: number) => request<any>("GET", `/api/analytics/judge-agreement${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   trend: (scorecard_id?: number) => request<any[]>("GET", `/api/analytics/trend${scorecard_id ? `?scorecard_id=${scorecard_id}` : ""}`),
+
+  // ---- admin: user & role management (Phase 2) ----
+  users: () => request<AuthUser[]>("GET", "/api/users"),
+  updateUser: (id: number, b: { roles?: string[]; is_active?: boolean; display_name?: string }) =>
+    request<AuthUser>("PATCH", `/api/users/${id}`, b),
 };
+
+export const ROLES = ["admin", "designer", "reviewer", "lead", "importer"] as const;
 
 export function bandFor(score: number | null | undefined, scale: Scale): Band | null {
   if (score === null || score === undefined) return null;

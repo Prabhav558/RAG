@@ -180,6 +180,11 @@ details.matrix-view table td { font-size: 12px; padding: 4px 6px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .empty { text-align: center; padding: 40px; color: var(--muted); }
 
+/* phase 2: auth */
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.login-card { max-width: 380px; width: 100%; }
+.login-card .field { margin-bottom: 12px; }
+
 /* cycle 3 */
 .acting-as { display: block; margin: 16px 6px 12px; font-size: 12px; color: var(--muted); }
 .acting-as span { display: block; margin-bottom: 4px; font-weight: 600; }

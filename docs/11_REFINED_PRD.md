@@ -14,7 +14,9 @@ scorecard, delivered as data.
 **Problem it solves.** Quality judged by unanchored opinion or self-declared status; no way to review ~2,400
 tasks/day by hand; spreadsheet scorecards without versioning, roll-up maths or audit.
 
-## 2. Actors and permissions (Phase 1: identity asserted by name, no login)
+## 2. Actors and permissions (originally: identity asserted by name, no login — since Phase 2, these are real
+accounts with roles; see docs/14_PHASE2_SECURITY_SPEC.md. The table below still describes each actor's own
+capabilities and the identity checks that apply regardless of role.)
 | Actor | Can |
 |---|---|
 | Designer | Create/edit draft scorecards; submit for review; publish directly when review is not required; retire versions |
@@ -97,6 +99,12 @@ tasks/day by hand; spreadsheet scorecards without versioning, roll-up maths or a
 Authentication and authorisation (actor names are asserted, not proven), data classification, retention,
 encryption policy, multi-tenancy, SSO. ODTQRC task definition and the clarity agent; C1–C6 capability and competency
 levels; predictive and prescriptive analytics.
+
+**Status update:** everything named above as Phase 2/out-of-scope has since been built — authentication, RBAC,
+retention and a security review (docs/14_PHASE2_SECURITY_SPEC.md), the ODTQRC clarity agent, the C1–C6 capability
+model, and predictive/prescriptive risk analytics (docs/12_ARCHITECTURE.md's extension-points table). Multi-tenancy
+and SSO remain out of scope. This section is left as written at the time for the record; it is no longer current
+scope guidance.
 
 ## 6. Open decisions (need a business owner)
 1. **Target 10 with a weighted mean** needs every parameter to be a 10. Keep it, or use "≥ 9 with no parameter below 9"

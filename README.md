@@ -52,15 +52,16 @@ Shared deployment: `docker compose up` (app + Postgres 16; migrations run on sta
 `claude-opus-5`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
 Existing Cycle 1–2 pilot databases: `alembic stamp 0001_cycle2 && alembic upgrade head`.
 
-> **Phase 1 has no login.** "Acting as" names are asserted, not authenticated, so the separation-of-duties rules
-> stop mistakes, not misuse. Keep it on a trusted network until Phase 2 adds identity.
+> **Login required.** Every account is a real login (username + password, PBKDF2-hashed, bearer-token sessions).
+> The first account ever registered on a fresh database becomes an admin automatically. See
+> `docs/14_PHASE2_SECURITY_SPEC.md` for the identity, RBAC and data-governance model.
 
 ## Test
 
 ```bash
-cd backend && python -m pytest -q      # 158 tests: scenarios, engine properties, 76-case corruption catalogue,
+cd backend && python -m pytest -q      # 200+ tests: scenarios, engine properties, 76-case corruption catalogue,
                                        # migration + fuzzing, state x action matrix, 21 acceptance scenarios,
-                                       # concurrency, Alembic upgrades
+                                       # concurrency, Alembic upgrades, auth/RBAC
 SCORECARD_TEST_DB_URL=postgresql+psycopg://user@host/db python -m pytest -q   # same suite on Postgres
 cd ../frontend && npm run typecheck
 BASE_URL=http://localhost:8000 npm run smoke                                 # browser smoke (running app)

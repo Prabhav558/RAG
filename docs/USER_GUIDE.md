@@ -1,7 +1,10 @@
 # User Guide
 
-Set **Acting as** (top of the sidebar) to your name first. Every action is recorded under it, and the rules
-depend on who you are: owners can't judge their own work, and reviewers can't approve their own scorecards.
+**Log in** (or **Register** the first time). Every action is recorded under your account, and the rules depend
+on who you are: owners can't judge their own work, and reviewers can't approve their own scorecards. The very
+first account ever created on a fresh system becomes an admin automatically — see **Admins**, below, for what
+that means. Everyone else starts as a plain member and can already do everything under *Owners*, *Judges* and
+*Adjudicators*; an admin grants the *Designer*, *Reviewer*, *Lead* and *Importer* roles as needed.
 
 ## Designers: build a scorecard
 1. **Scorecard library → + New scorecard.** Name it, choose what it scores (or add a new subject type), a rating
@@ -21,11 +24,15 @@ Tip: start from a reference scorecard (**Clone**), and understand its intent rat
 
 ## Owners: get work through the gate
 1. **Work & gates → + New subject.** Create the project, then milestones and tasks under it. Set a due date and
-   budget if the scorecard applies QTC.
-2. Open the task and **Start** a submission against a published scorecard. Paste the work or a link and notes.
-3. **Self-appraise.** Score your own work honestly. Only you can see it.
-4. **Submit for judging.**
-5. If it comes back **Redo**, improve the work and **Start attempt 2**.
+   budget if the scorecard applies QTC. Optionally add its **task definition**: Objective, Deliverable, Quality
+   and Risk (Time and Cost are the due date and budget you just set) — the six things worth writing down before
+   work starts.
+2. Open the task and **Check clarity** to have an agent flag anything too vague to act on (a goal with no
+   measurable "done", a missing deadline) — purely advisory, it never changes anything.
+3. **Start** a submission against a published scorecard. Paste the work or a link and notes.
+4. **Self-appraise.** Score your own work honestly. Only you can see it.
+5. **Submit for judging.**
+6. If it comes back **Redo**, improve the work and **Start attempt 2**.
 
 ## Judges: evaluate
 1. Open a submission that is *In review* (from Work, or a link) and click **Judge as <you>**. You can also add an
@@ -42,7 +49,18 @@ choose the verdict and give the reason. Your reason becomes a guideline dispute 
 ## Leads
 - **Needs attention** lists people with repeated reds. Talk to them, then record a diagnosis: skill (train),
   aptitude (reassign), will (discuss) or allocation (rescope). A red is information, not blame.
+- The same page's **risk forecast** flags open submissions before they fail — overdue, over budget, a recent
+  pattern of reds, a capability level below Competent, or a repeat attempt — each with a recommended next action
+  from the same vocabulary as diagnosis. It's a forecast, not a verdict: read the factors before acting on it.
+- **Capability & competency**, further down the same page, records a person's C1 (unaware) through C6 (expert)
+  level for a scorecard's skill domain — never about yourself, same rule as diagnosis. History is kept, not
+  overwritten, so you can see how someone progressed.
 - The **Work** page shows the honest board: a project is green only when everything beneath it is green.
+
+## Admins
+**Users & roles** (visible only to admins) grants the elevated roles — Designer, Reviewer, Lead, Importer — to
+registered members, and can deactivate an account (never your own). Everything a member can already do (create
+subjects, self-appraise, submit, judge, adjudicate) needs no role; these four gate the rest.
 
 ## Quick evaluations
 **Quick evaluation** rates anything against a published scorecard without the gate, for example a one-off review

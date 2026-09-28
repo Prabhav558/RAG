@@ -23,6 +23,29 @@ async function step(name, fn) {
 }
 
 const unique = `Smoke ${Date.now() % 100000}`;
+const PASSWORD = "Smoke-Password-1!";
+const registered = new Set();
+
+// Phase 2: every page needs a login. The first account ever registered on a fresh database becomes admin
+// automatically (see docs/14_PHASE2_SECURITY_SPEC.md), so `data/tools/ingest.py --reset`'s seed data (loaded
+// through the service layer, with no HTTP users) means this suite's first registration is that admin.
+async function actAs(username, displayName) {
+  if (await page.locator("text=Log out").count()) await page.click("text=Log out");
+  await page.waitForSelector(".login-card");
+  const isNew = !registered.has(username);
+  await page.click(isNew ? ".tabs >> text=Register" : ".tabs >> text=Log in");
+  await page.fill(".login-card input[autocomplete='username']", username);
+  if (isNew) await page.fill(".login-card input[autocomplete='name']", displayName);
+  await page.fill(`.login-card input[autocomplete='${isNew ? "new-password" : "current-password"}']`, PASSWORD);
+  await page.click(".login-card form button[type=submit]");
+  await page.waitForSelector(".acting-as");
+  registered.add(username);
+}
+
+await step("register the first user (auto-admin) and log in", async () => {
+  await page.goto(BASE + "/");
+  await actAs("smoke-admin", "Smoke Admin");
+});
 
 await step("library lists the reference scorecards", async () => {
   await page.goto(BASE + "/");
@@ -74,14 +97,9 @@ await step("import a messy legacy workbook", async () => {
   await snap("import");
 });
 
-async function actAs(name) {
-  const box = page.locator(".acting-as input");
-  await box.fill(name);
-}
-
 await step("quality gate end to end: create work, self-appraise, submit, judge, decide", async () => {
   await page.goto(BASE + "/work");
-  await actAs("Alice");
+  await actAs("smoke-alice", "Alice");
   await page.click("text=+ New subject");
   await page.fill("label:has-text('Name') >> input", `Smoke project ${unique}`);
   await page.selectOption("label:has-text('Type') >> select", "project");
@@ -103,7 +121,7 @@ await step("quality gate end to end: create work, self-appraise, submit, judge, 
   await page.click("text=← Back to the submission");
   await page.click("button:has-text('Submit for judging')");
   await page.waitForSelector(".stepper .s.now:has-text('In review')");
-  await actAs("Bob");
+  await actAs("smoke-bob", "Bob");
   await page.click("button:has-text('Judge as Bob')");
   await page.waitForSelector("text=Complete evaluation");
   for (const btn of await page.locator(".leaf .score-btn", { hasText: /^9$/ }).all()) { await btn.click(); await page.waitForTimeout(150); }
@@ -121,6 +139,47 @@ await step("quality gate end to end: create work, self-appraise, submit, judge, 
 await step("attention list renders", async () => {
   await page.goto(BASE + "/attention");
   await page.waitForSelector("text=Needs attention");
+});
+
+await step("ODTQRC task definition can be edited", async () => {
+  // Note: this deliberately stops short of clicking "Check clarity" — that endpoint calls a real LLM and needs
+  // ANTHROPIC_API_KEY, which CI does not set (the same reason this suite never calls the LLM judge either); a
+  // 503 from that call would still log a browser console error and trip the "no browser errors" check below.
+  await page.goto(BASE + "/work");
+  await page.click(`a:has-text('Smoke task ${unique}')`);
+  await page.click("button:has-text('Edit details')");
+  await page.fill("label:has-text('Objective') >> textarea", "Ship a reviewed report by Friday");
+  await page.fill("label:has-text('Deliverable') >> textarea", "report.pdf in the shared drive");
+  await page.fill("label:has-text('Quality') >> textarea", "Passes the 5-point review checklist");
+  await page.fill("label:has-text('Risk') >> textarea", "Reviewer may be on leave");
+  await page.click("button:has-text('Save')");
+  await page.waitForSelector("text=Ship a reviewed report by Friday");
+});
+
+await step("capability level can be recorded (as the lead/admin)", async () => {
+  // The quality-gate step above ends logged in as Bob, who has no lead role; recording a capability level
+  // needs one (and needs a different person than the actor, per the same S003 rule diagnosis uses).
+  await actAs("smoke-admin", "Smoke Admin");
+  await page.goto(BASE + "/attention");
+  await page.fill("label:has-text('Person') >> input", "Bob");
+  await page.selectOption("label:has-text('Scorecard') >> select", { label: "Client Email Quality" });
+  await page.selectOption("label:has-text('Level') >> select", { label: "C4 — Competent" });
+  await page.click("button:has-text('Record as Smoke Admin')");
+  // Scoped to the chip, not a bare text= match: the Level <select>'s own options also contain this text.
+  await page.waitForSelector(".chip.neutral:has-text('C4 — Competent')");
+});
+
+await step("risk forecast renders", async () => {
+  await page.goto(BASE + "/attention");
+  await page.waitForSelector("text=Risk forecast");
+});
+
+await step("admin can manage users and roles", async () => {
+  await page.goto(BASE + "/users");
+  await page.waitForSelector("text=Users & roles");
+  const row = page.locator("tr", { hasText: "Alice" });
+  await row.waitFor();
+  await row.locator("td input[type=checkbox]").first().click();
 });
 
 await step("analytics renders", async () => {

@@ -77,12 +77,19 @@ function NewSubject({ types, parents, onDone }: { types: SubjectType[]; parents:
   const [owner, setOwner] = useState(actor);
   const [due, setDue] = useState("");
   const [budget, setBudget] = useState("");
+  const [showTaskDef, setShowTaskDef] = useState(false);
+  const [objective, setObjective] = useState("");
+  const [deliverable, setDeliverable] = useState("");
+  const [qualityBar, setQualityBar] = useState("");
+  const [risks, setRisks] = useState("");
   const [error, setError] = useState<unknown>(null);
   async function create() {
     try {
       await api.createSubject({
         name, subject_type: type, owner, parent_id: parent ? Number(parent) : null,
         due_at: due ? new Date(due).toISOString() : null, budget: budget === "" ? null : Number(budget),
+        objective: objective || null, deliverable: deliverable || null, quality_bar: qualityBar || null,
+        risks: risks || null,
       });
       onDone();
     } catch (e) {
@@ -108,7 +115,17 @@ function NewSubject({ types, parents, onDone }: { types: SubjectType[]; parents:
         <Field label="Due (QTC time)"><input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
         <Field label="Budget (QTC cost)"><input type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} /></Field>
       </div>
-      {!actor && <p className="hint">Set “Acting as” in the sidebar first: every change is recorded under a name.</p>}
+      <button className="sm" type="button" onClick={() => setShowTaskDef(!showTaskDef)} style={{ marginBottom: 8 }}>
+        {showTaskDef ? "− Hide" : "+ Add"} task definition (Objective, Deliverable, Quality, Risk)
+      </button>
+      {showTaskDef && (
+        <div className="form-grid">
+          <Field label="Objective"><textarea rows={2} value={objective} onChange={(e) => setObjective(e.target.value)} /></Field>
+          <Field label="Deliverable"><textarea rows={2} value={deliverable} onChange={(e) => setDeliverable(e.target.value)} /></Field>
+          <Field label="Quality"><textarea rows={2} value={qualityBar} onChange={(e) => setQualityBar(e.target.value)} /></Field>
+          <Field label="Risk"><textarea rows={2} value={risks} onChange={(e) => setRisks(e.target.value)} /></Field>
+        </div>
+      )}
       <div className="row">
         <button className="primary" disabled={!name.trim() || !owner.trim()} onClick={create}>Create</button>
         <button onClick={onDone}>Cancel</button>
