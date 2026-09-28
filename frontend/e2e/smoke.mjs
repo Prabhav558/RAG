@@ -143,7 +143,7 @@ await step("attention list renders", async () => {
 
 await step("ODTQRC task definition can be edited", async () => {
   // Note: this deliberately stops short of clicking "Check clarity" — that endpoint calls a real LLM and needs
-  // ANTHROPIC_API_KEY, which CI does not set (the same reason this suite never calls the LLM judge either); a
+  // GROQ_API_KEY, which CI does not set (the same reason this suite never calls the LLM judge either); a
   // 503 from that call would still log a browser console error and trip the "no browser errors" check below.
   await page.goto(BASE + "/work");
   await page.click(`a:has-text('Smoke task ${unique}')`);

@@ -16,7 +16,7 @@ services:
       db: { condition: service_healthy }
     environment:
       SCORECARD_DB_URL: postgresql+psycopg://scorecard:${POSTGRES_PASSWORD:-change-me}@db:5432/scorecard
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     ports: ["8000:8000"]
 volumes:
   pgdata:

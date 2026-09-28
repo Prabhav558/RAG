@@ -48,8 +48,8 @@ npm run build                                   # then FastAPI serves the UI at 
 ```
 
 Shared deployment: `docker compose up` (app + Postgres 16; migrations run on start). Settings:
-`SCORECARD_DB_URL`, `ANTHROPIC_API_KEY` (optional LLM judge; model `SCORECARD_JUDGE_MODEL`, default
-`claude-opus-5`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
+`SCORECARD_DB_URL`, `GROQ_API_KEY` (optional LLM judge; model `SCORECARD_JUDGE_MODEL`, default
+`llama-3.3-70b-versatile`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
 Existing Cycle 1–2 pilot databases: `alembic stamp 0001_cycle2 && alembic upgrade head`.
 
 > **Login required.** Every account is a real login (username + password, PBKDF2-hashed, bearer-token sessions).

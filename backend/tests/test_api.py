@@ -430,9 +430,7 @@ def test_judge_prompt_and_schema_cover_every_leaf(client):
 
 
 def test_judge_unconfigured_returns_503(client, monkeypatch):
-    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
-        monkeypatch.delenv(var, raising=False)
-    monkeypatch.setenv("HOME", "/nonexistent")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     card = create(client, definition())
     ev = new_eval(client, version_id(card), input_text="x")
     r = client.post(f"/api/evaluations/{ev['id']}/llm-judge")

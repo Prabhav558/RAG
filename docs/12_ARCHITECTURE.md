@@ -18,7 +18,7 @@ flowchart LR
     R2 --> A[analytics.py<br/>SQL aggregates]
   end
   API --> DB[(SQLite / Postgres<br/>Alembic migrations)]
-  J -->|structured output| LLM[Anthropic API]
+  J -->|structured output| LLM[Groq API]
   C -->|structured output| LLM
 ```
 
@@ -51,7 +51,7 @@ flowchart LR
 - **Pilot:** one process, SQLite, `uvicorn app.main:app` serving the API and the built UI.
 - **Shared:** `docker compose up` (app with 2 workers, plus Postgres 16). The container runs `alembic upgrade head`
   on start (`SCORECARD_AUTO_CREATE=0`).
-- **Config:** `SCORECARD_DB_URL`, `ANTHROPIC_API_KEY`, `SCORECARD_JUDGE_MODEL` (default `claude-opus-5`),
+- **Config:** `SCORECARD_DB_URL`, `GROQ_API_KEY`, `SCORECARD_JUDGE_MODEL` (default `llama-3.3-70b-versatile`),
   `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE`.
 
 ## Security posture

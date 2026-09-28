@@ -116,7 +116,7 @@ the next step by the framework's own design.
 | Backend | Python, FastAPI, SQLAlchemy 2, Pydantic 2 | Same language for API, scoring engine, data generator and BI; Pydantic doubles as the data contract. |
 | Scoring engine | Pure functions (`app/scoring.py`), no DB access | Deterministic, unit-testable, reusable by the API, generator and analytics. The single most important piece of logic. |
 | Validation | Pure functions (`app/validation.py`) returning coded issues | Scenario catalogue references error codes, so invalid-data scenarios are traceable to tests. |
-| LLM judge | Anthropic API, structured JSON output, optional | Framework: "LLM first, human second". Must be optional — a scorecard must remain usable with human judges alone. |
+| LLM judge | Groq API, structured JSON output, optional | Framework: "LLM first, human second". Must be optional — a scorecard must remain usable with human judges alone. |
 | Frontend | React + Vite + TypeScript, no UI kit | Tree editing and live score recomputation need a real client; minimal dependencies. |
 
 ---
