@@ -86,8 +86,15 @@ await step("evaluate and complete with the pilot scorecard", async () => {
   await page.waitForSelector("text=✓ Meets target", { timeout: 5000 });
 });
 
+await step("AI-assisted import tab renders (no LLM call: CI has no key)", async () => {
+  await page.goto(BASE + "/import");
+  await page.waitForSelector("text=Draft scorecard with AI");
+  await page.waitForSelector("text=Level of detail");
+});
+
 await step("import a messy legacy workbook", async () => {
   await page.goto(BASE + "/import");
+  await page.click("button:has-text('Standard import')");
   await page.setInputFiles("input[type=file]", path.join(ROOT, "data/legacy/training-session-quality.xlsx"));
   await page.click("button:has-text('Preview')");
   await page.waitForSelector("text=Row-by-row outcome");
@@ -152,6 +159,8 @@ await step("ODTQRC task definition can be edited", async () => {
 });
 
 await step("admin can manage users and roles", async () => {
+  // the quality-gate step above ends logged in as Bob, who has no admin role
+  await actAs("smoke-admin", "Smoke Admin");
   await page.goto(BASE + "/users");
   await page.waitForSelector("text=Users & roles");
   const row = page.locator("tr", { hasText: "Alice" });
