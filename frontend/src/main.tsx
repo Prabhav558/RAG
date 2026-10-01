@@ -13,7 +13,6 @@ import ImportPage from "./pages/Import";
 import Work from "./pages/Work";
 import SubjectPage from "./pages/SubjectPage";
 import SubmissionPage from "./pages/SubmissionPage";
-import Attention from "./pages/Attention";
 import Login from "./pages/Login";
 import Users from "./pages/Users";
 import { hasRole, LoggedInAs, useAuth } from "./components/common";
@@ -33,7 +32,6 @@ function Shell() {
         <NavLink to="/import">Import legacy</NavLink>
         <div className="section">Work</div>
         <NavLink to="/work">Work &amp; gates</NavLink>
-        <NavLink to="/attention">Needs attention</NavLink>
         <div className="section">Rate</div>
         <NavLink to="/evaluate">Quick evaluation</NavLink>
         <NavLink to="/evaluations">Evaluations</NavLink>
@@ -58,7 +56,6 @@ function Shell() {
           <Route path="/work" element={<Work />} />
           <Route path="/subjects/:subjectId" element={<SubjectPage />} />
           <Route path="/submissions/:submissionId" element={<SubmissionPage />} />
-          <Route path="/attention" element={<Attention />} />
           <Route path="/users" element={<Users />} />
           <Route path="*" element={<div className="empty">Page not found</div>} />
         </Routes>

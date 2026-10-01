@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from typing import Protocol
 
-DEFAULT_MODEL = os.environ.get("SCORECARD_CLARITY_MODEL", "llama-3.3-70b-versatile")
+DEFAULT_MODEL = os.environ.get("SCORECARD_CLARITY_MODEL", "openai/gpt-oss-120b")
 MAX_INPUT_CHARS = 20_000
 
 FIELD_LABELS = {

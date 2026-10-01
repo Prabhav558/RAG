@@ -88,6 +88,28 @@ class ScorecardDefinition(Contract):
     version: VersionIn
 
 
+class AssistMessage(Contract):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4_000)
+
+
+class AssistRequest(Contract):
+    """The chat so far plus what the builder currently holds, for the AI Assist panel (app/kpi_assist.py)."""
+
+    messages: list[AssistMessage] = Field(min_length=1, max_length=30)
+    name: str = Field(default="", max_length=NAME_MAX)
+    subject_type: str = Field(default="", max_length=60)
+    purpose: str = Field(default="", max_length=TEXT_MAX)
+    scope: str = Field(default="", max_length=TEXT_MAX)
+    objective: str = Field(default="", max_length=TEXT_MAX)
+    guidance: str = Field(default="", max_length=TEXT_MAX)
+    rating_scale: str = "0-10-rag"
+    target_score: float = 8
+    max_depth: int = Field(default=4, ge=1, le=6)
+    existing: list[str] = Field(default_factory=list, max_length=100)  # names of KPIs already in the builder
+    proposal: list[ParameterIn] = Field(default_factory=list, max_length=60)  # previous proposal being refined
+
+
 class ScorecardMetaUpdate(Contract):
     requires_review: bool | None = None
     name: str | None = None

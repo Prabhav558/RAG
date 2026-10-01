@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 from .. import auth
 from .. import services as svc
 from ..db import get_session
+from ..kpi_assist import AssistContext, AssistError, KpiAssistant, get_kpi_assistant
 from ..models import RatingScale, Scorecard, ScorecardVersion, SubjectType
 from ..schemas import (
+    AssistRequest,
     CloneRequest,
     ScaleIn,
     ScorecardDefinition,
@@ -169,3 +171,26 @@ def new_draft(version_id: int, change_note: str | None = None, _: object = Depen
 @router.delete("/versions/{version_id}", status_code=204)
 def delete_draft(version_id: int, _: object = Depends(require_designer), db: Session = Depends(get_session)):
     svc.delete_draft(db, _version(db, version_id))
+
+
+@router.post("/ai-assist/parameters")
+def ai_assist_parameters(body: AssistRequest, _: object = Depends(require_designer),
+                         db: Session = Depends(get_session), assistant: KpiAssistant = Depends(get_kpi_assistant)):
+    """Advisory only: drafts a KPI hierarchy and rating matrix from the designer's chat. Saves nothing; the
+    designer accepts the proposal in the builder, and the usual validation applies to the result."""
+    scale = svc.scale_by_code(db, body.rating_scale)
+    ctx = AssistContext(
+        name=body.name, subject_type=body.subject_type, purpose=body.purpose, scope=body.scope,
+        objective=body.objective, guidance=body.guidance, scale_min=scale.min_value, scale_max=scale.max_value,
+        band_lower_bounds=[b.lower_bound for b in scale.bands], target_score=body.target_score,
+        max_depth=body.max_depth, existing=body.existing, proposal=body.proposal,
+    )
+    try:
+        result = assistant.propose([m.model_dump() for m in body.messages], ctx)
+    except AssistError as e:
+        raise svc.DomainError("J003", str(e), e.status) from e
+    version = VersionIn(purpose=body.purpose, scope=body.scope, objective=body.objective, rating_scale=body.rating_scale,
+                        target_score=body.target_score, max_depth=body.max_depth, parameters=result.parameters)
+    issues = [i for i in validate_version(version, svc.scale_info(scale)) if i.path]  # parameter-level only
+    return {"model": result.model, "reply": result.reply,
+            "parameters": [p.model_dump() for p in result.parameters], "issues": [i.model_dump() for i in issues]}

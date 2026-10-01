@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   api, Criterion, Issue, MetricDef, ParamDef, Scale, ScorecardDefinition, ScorecardSummary, SubjectType, VersionView,
 } from "../api";
+import AiAssist, { AssistTarget } from "../components/AiAssist";
 import { ErrorBox, Field, ScaleLegend, StatusChip } from "../components/common";
 
 let keySeq = 0;
@@ -41,6 +42,14 @@ function nextCode(parent: ParamDef | null, siblings: ParamDef[], used: string[])
   const make = (n: number) => (parent ? `${parent.code}.${n}` : String(n));
   while (used.includes(make(i))) i++;
   return make(i);
+}
+
+/** Give a proposed hierarchy fresh codes ("4", "4.1", ...) that cannot collide with what is already in the builder. */
+function renumber(ps: ParamDef[], prefix: string, start: number): ParamDef[] {
+  return ps.map((p, i) => {
+    const code = prefix ? `${prefix}.${start + i}` : String(start + i);
+    return { ...p, code, children: renumber(p.children, code, 1) };
+  });
 }
 
 function blankParam(code: string): ParamDef {
@@ -83,6 +92,7 @@ export default function Builder() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [assistOpen, setAssistOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -190,6 +200,39 @@ export default function Builder() {
     a.download = `${def!.code}-v${view!.version_no}.json`;
     a.click();
   }
+
+  function applyAssist(proposed: ParamDef[], mode: "add" | "replace", parentKey: string | null = null) {
+    const parent = parentKey ? findPath(def!.version.parameters, parentKey)?.slice(-1)[0] : undefined;
+    if (parent) {
+      // one drafted sub-parameter (or more) goes under an existing parameter, which becomes a roll-up
+      const last = Math.max(0, ...parent.children.map((c) => Number(c.code.split(".").pop()) || 0));
+      const start = Math.max(parent.children.length, last) + 1;
+      const fresh = withKeys(renumber(proposed, parent.code, start));
+      setParams(mapTree(def!.version.parameters, parent._key!, (p) => ({
+        ...p, children: [...p.children, ...fresh], criteria: [], metrics: [],
+      })));
+      setSelected(fresh[0]?._key ?? null);
+      setNotice(`AI Assist: added '${fresh[0]?.name}' under ${parent.code} ${parent.name}. Review, then save.`);
+    } else {
+      const base = mode === "replace" ? [] : def!.version.parameters;
+      const start = Math.max(base.length, ...base.map((p) => Number(p.code) || 0)) + 1;
+      const fresh = withKeys(renumber(proposed, "", start));
+      setParams([...base, ...fresh]);
+      setSelected(fresh[0]?._key ?? null);
+      setNotice(`AI Assist: ${mode === "replace" ? "replaced with" : "added"} ${fresh.length} KPI${fresh.length > 1 ? "s" : ""}. Review, then save.`);
+    }
+    window.setTimeout(() => setNotice(null), 4000);
+  }
+
+  const assistTargets = (() => {
+    const out: AssistTarget[] = [];
+    const walk = (ps: ParamDef[], depth: number) => ps.forEach((p) => {
+      out.push({ key: p._key!, code: p.code, name: p.name, depth, hasContent: p.children.length === 0 && (p.criteria.some((c) => c.qualitative.trim() || c.quantitative?.trim()) || p.metrics.length > 0) });
+      walk(p.children, depth + 1);
+    });
+    walk(def.version.parameters, 1);
+    return out;
+  })();
 
   const selPath = selected ? findPath(def.version.parameters, selected) : null;
   const selNode = selPath ? selPath[selPath.length - 1] : null;
@@ -356,6 +399,12 @@ export default function Builder() {
           </div>
         )}
 
+        {tab === "params" && scale && !readOnly && (
+          <div className="row" style={{ marginBottom: 10 }}>
+            <button className="primary" type="button" onClick={() => setAssistOpen((o) => !o)}>✨ AI Assist</button>
+            <span className="small muted">Describe the KPIs you want and let AI draft the rating matrix.</span>
+          </div>
+        )}
         {tab === "params" && scale && (
           <div className="builder">
             <div className="card">
@@ -418,6 +467,14 @@ export default function Builder() {
           </div>
         )}
       </fieldset>
+
+      {tab === "params" && assistOpen && !readOnly && (
+        <AiAssist
+          version={def.version} name={def.name} subjectType={def.subject_type}
+          targets={assistTargets}
+          onApply={applyAssist} onClose={() => setAssistOpen(false)}
+        />
+      )}
 
       {tab === "review" && (
         <div className="grid two">

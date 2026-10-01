@@ -352,6 +352,32 @@ export interface ClarityResult {
   issues: ClarityIssue[];
 }
 
+// ---- AI Assist: KPI and rating-matrix drafting in the builder (backend/app/kpi_assist.py) ----
+export interface AssistMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+export interface AssistRequest {
+  messages: AssistMessage[];
+  name: string;
+  subject_type: string;
+  purpose: string;
+  scope: string;
+  objective: string;
+  guidance: string;
+  rating_scale: string;
+  target_score: number;
+  max_depth: number;
+  existing: string[];
+  proposal: ParamDef[];
+}
+export interface AssistResult {
+  model: string;
+  reply: string;
+  parameters: ParamDef[];
+  issues: Issue[];
+}
+
 // ---- capability & competency (C1-C6) ----
 export interface CapabilityRow {
   id: number;
@@ -622,6 +648,7 @@ export const api = {
     objective?: string | null; deliverable?: string | null; quality_bar?: string | null; risks?: string | null;
   }) => request<SubjectNode>("POST", "/api/subjects", b),
   updateSubject: (id: number, b: Record<string, unknown>) => request<SubjectNode>("PATCH", `/api/subjects/${id}`, b),
+  aiAssist: (b: AssistRequest) => request<AssistResult>("POST", "/api/ai-assist/parameters", b),
   clarityCheck: (subjectId: number) => request<ClarityResult>("POST", `/api/subjects/${subjectId}/clarity-check`),
   startSubmission: (subjectId: number, b: { version_id: number; title?: string; input_text?: string }) =>
     request<SubmissionView>("POST", `/api/subjects/${subjectId}/submissions`, b),

@@ -6,6 +6,8 @@ A generic **Scorecard Creation & Rating System**: Google Forms / SurveyMonkey fo
   products, and any subject type you add. It has a purpose, scope and objective; KPIs in a hierarchy (4 levels by
   default); relative weights; an anchored qualitative and quantitative rating matrix; metrics with thresholds;
   targets; critical gates; QTC; and optional two-person review. Versions are immutable once published.
+  **AI Assist** in the builder drafts KPIs and their rating matrices from a short chat; you review the draft
+  before anything is added (needs `GROQ_API_KEY`).
 - **Rate** text, documents or metric data manually, as a private self-appraisal, or with an LLM judge that
   proposes scores for a human to confirm. A deterministic engine does all the maths and explains every score.
   Bands never round up.
@@ -49,7 +51,7 @@ npm run build                                   # then FastAPI serves the UI at 
 
 Shared deployment: `docker compose up` (app + Postgres 16; migrations run on start). Settings:
 `SCORECARD_DB_URL`, `GROQ_API_KEY` (optional LLM judge; model `SCORECARD_JUDGE_MODEL`, default
-`llama-3.3-70b-versatile`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
+`openai/gpt-oss-120b`), `RED_THRESHOLD`, `RED_WINDOW_DAYS`, `SCORECARD_AUTO_CREATE=0` in production.
 Existing Cycle 1–2 pilot databases: `alembic stamp 0001_cycle2 && alembic upgrade head`.
 
 > **Login required.** Every account is a real login (username + password, PBKDF2-hashed, bearer-token sessions).
@@ -84,5 +86,5 @@ acceptance/*.feature           business-readable acceptance scenarios
 data/scorecards/*.json         scorecard definitions (the pilot is one of them)
 data/tools/                    ingest, generators, corruption, legacy, migrate, perf, concurrency
 frontend/src/pages/            Library, Builder, Work, Subject, Submission, Evaluate, Evaluations,
-                               Analytics, Needs attention, Import
+                               Analytics, Import
 ```

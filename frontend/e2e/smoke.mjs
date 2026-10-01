@@ -136,11 +136,6 @@ await step("quality gate end to end: create work, self-appraise, submit, judge, 
   await row.locator(".chip.pass", { hasText: "Green" }).waitFor();
 });
 
-await step("attention list renders", async () => {
-  await page.goto(BASE + "/attention");
-  await page.waitForSelector("text=Needs attention");
-});
-
 await step("ODTQRC task definition can be edited", async () => {
   // Note: this deliberately stops short of clicking "Check clarity" — that endpoint calls a real LLM and needs
   // GROQ_API_KEY, which CI does not set (the same reason this suite never calls the LLM judge either); a
@@ -154,24 +149,6 @@ await step("ODTQRC task definition can be edited", async () => {
   await page.fill("label:has-text('Risk') >> textarea", "Reviewer may be on leave");
   await page.click("button:has-text('Save')");
   await page.waitForSelector("text=Ship a reviewed report by Friday");
-});
-
-await step("capability level can be recorded (as the lead/admin)", async () => {
-  // The quality-gate step above ends logged in as Bob, who has no lead role; recording a capability level
-  // needs one (and needs a different person than the actor, per the same S003 rule diagnosis uses).
-  await actAs("smoke-admin", "Smoke Admin");
-  await page.goto(BASE + "/attention");
-  await page.fill("label:has-text('Person') >> input", "Bob");
-  await page.selectOption("label:has-text('Scorecard') >> select", { label: "Client Email Quality" });
-  await page.selectOption("label:has-text('Level') >> select", { label: "C4 — Competent" });
-  await page.click("button:has-text('Record as Smoke Admin')");
-  // Scoped to the chip, not a bare text= match: the Level <select>'s own options also contain this text.
-  await page.waitForSelector(".chip.neutral:has-text('C4 — Competent')");
-});
-
-await step("risk forecast renders", async () => {
-  await page.goto(BASE + "/attention");
-  await page.waitForSelector("text=Risk forecast");
 });
 
 await step("admin can manage users and roles", async () => {
