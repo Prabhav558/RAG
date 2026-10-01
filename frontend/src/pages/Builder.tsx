@@ -468,8 +468,9 @@ export default function Builder() {
         )}
       </fieldset>
 
-      {tab === "params" && assistOpen && !readOnly && (
+      {!readOnly && (
         <AiAssist
+          key={view.scorecard_id} open={tab === "params" && assistOpen} scorecardId={view.scorecard_id}
           version={def.version} name={def.name} subjectType={def.subject_type}
           targets={assistTargets}
           onApply={applyAssist} onClose={() => setAssistOpen(false)}

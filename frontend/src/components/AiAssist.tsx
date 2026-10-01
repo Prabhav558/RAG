@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, AssistRequest, Issue, ParamDef, ScorecardDefinition } from "../api";
+import { useActor } from "./common";
 
 interface ChatItem {
   role: "user" | "assistant";
@@ -119,17 +120,44 @@ function Node({ p, share, issues, ctx, top = false }: { p: ParamDef; share: numb
   );
 }
 
-export default function AiAssist({ version, name, subjectType, targets, onApply, onClose }: {
+const MAX_SAVED = 40;
+
+/** The chat is kept per scorecard (and per person) in this browser, so it survives closing the panel, switching
+ * tabs, reloading the page and coming back later. Storage can be unavailable or full: then it just isn't kept. */
+function loadChat(key: string): ChatItem[] {
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((i) => i && (i.role === "user" || i.role === "assistant") && typeof i.content === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveChat(key: string, items: ChatItem[]) {
+  try {
+    if (items.length === 0) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(items.slice(-MAX_SAVED)));
+  } catch {
+    /* private mode or storage full: the chat just isn't kept */
+  }
+}
+
+export default function AiAssist({ open, scorecardId, version, name, subjectType, targets, onApply, onClose }: {
+  open: boolean; scorecardId: number;
   version: ScorecardDefinition["version"]; name: string; subjectType: string; targets: AssistTarget[];
   onApply: (parameters: ParamDef[], mode: "add" | "replace", parentKey?: string | null) => void; onClose: () => void;
 }) {
   const existing = targets.filter((t) => t.depth === 1).map((t) => t.name);
-  const [items, setItems] = useState<ChatItem[]>([]);
+  const actor = useActor();
+  const storageKey = `scorecard-studio:ai-assist:${actor || "anonymous"}:${scorecardId}`;
+  const [items, setItems] = useState<ChatItem[]>(() => loadChat(storageKey));
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [items, busy]);
+  useEffect(() => { saveChat(storageKey, items); }, [storageKey, items]);
+  useEffect(() => { if (open) end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [items, busy, open]);
 
   const missing = !version.purpose.trim() || !version.objective.trim();
 
@@ -150,10 +178,12 @@ export default function AiAssist({ version, name, subjectType, targets, onApply,
     };
     try {
       const r = await api.aiAssist(req);
-      setItems([...next, {
+      const done: ChatItem[] = [...next, {
         role: "assistant", content: r.reply || (r.parameters.length ? "Here is a draft." : "Could you tell me more?"),
         proposal: r.parameters.length ? r.parameters : undefined, issues: r.issues,
-      }]);
+      }];
+      saveChat(storageKey, done); // saved even if the panel was left while the answer was on its way
+      setItems(done);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
     } finally {
@@ -178,12 +208,21 @@ export default function AiAssist({ version, name, subjectType, targets, onApply,
     setItems(items.map((x, j) => (j === i ? { ...x, added: [...(x.added ?? []), node.code] } : x)));
   }
 
+  function clearChat() {
+    if (items.length && !window.confirm("Start a new chat? This clears the conversation saved for this scorecard.")) return;
+    setItems([]);
+    setError(null);
+  }
+
+  if (!open) return null; // stays mounted (and keeps its chat) while closed or while another tab is showing
+
   return (
     <div className="assist" role="dialog" aria-label="AI Assist">
       <div className="assist-head">
         <b>✨ AI Assist</b>
-        <span className="small muted">Describe the KPIs you want; review the draft before it is added.</span>
+        <span className="small muted">Describe the KPIs you want; review the draft before it is added. Your chat is saved for this scorecard.</span>
         <span className="spacer" />
+        {items.length > 0 && <button className="sm ghost" onClick={clearChat} disabled={busy} title="Clear the saved conversation for this scorecard">New chat</button>}
         <button className="sm ghost" onClick={onClose} aria-label="Close AI Assist">✕</button>
       </div>
       <div className="assist-body">
