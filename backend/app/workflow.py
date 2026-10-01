@@ -1,4 +1,4 @@
-"""State machines for Cycle 3 (docs/10_CYCLE3_BEHAVIOUR_SPEC.md).
+"""State machines for Cycle 3.
 
 Transitions are data, not scattered if-statements: `TRANSITIONS[machine][(state, action)] = next_state`.
 Guards that depend on data live in services_flow.py; this module enforces *which* actions exist in *which* state,

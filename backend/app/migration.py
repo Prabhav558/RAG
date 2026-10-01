@@ -5,7 +5,6 @@ map to the target model (scale, target, hierarchy, rating matrix) -> validate ->
 
 Every source row ends in exactly one state: imported | warning (imported with a note) | rejected (with reason).
 `preview` never writes; `commit` writes through app.services, so imported data obeys every normal rule.
-Rules are documented in docs/07_CYCLE2_PLAN.md §8.3 and docs/cycle2/MIGRATION_RULES.md.
 """
 
 from __future__ import annotations

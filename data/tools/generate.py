@@ -1,7 +1,6 @@
 """Scenario-based evaluation data generator (DDD framework §7.4).
 
-Scenario richness first, volume second: every generated subject is drawn from a named archetype
-(see docs/04_SCENARIO_CATALOGUE.md), and --multiplier scales volume only after the archetypes exist.
+Scenario richness first, volume second: every generated subject is drawn from a named archetype, and --multiplier scales volume only after the archetypes exist.
 All writes go through app.services, so generated data obeys exactly the same rules as user data.
 
     python data/tools/ingest.py --reset && python data/tools/generate.py --multiplier 1

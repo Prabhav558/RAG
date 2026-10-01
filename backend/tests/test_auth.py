@@ -1,4 +1,4 @@
-"""Phase 2 — authentication & RBAC (docs/14_PHASE2_SECURITY_SPEC.md).
+"""Phase 2 — authentication & RBAC.
 
 Uses the `client` fixture, which already registered as the first user (auto-admin) — see conftest.py. These
 tests use a *second* `TestClient(app)` when they need to check unauthenticated or non-admin behaviour, since the

@@ -1,7 +1,6 @@
 """Relational model for the generic Scorecard Creation & Rating System.
 
-Source of truth for the schema. `python -m app.dump_schema` exports the DDL to docs/schema.sql.
-Field-level rules are documented in docs/03_DATA_DICTIONARY.md.
+Source of truth for the schema. `python -m app.dump_schema` prints the DDL.
 """
 
 from datetime import datetime, timezone
@@ -387,7 +386,7 @@ class Subject(Base):
     description: Mapped[str | None] = mapped_column(Text)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # ODTQRC: Time (also QTC: agreed time)
     budget: Mapped[float | None] = mapped_column(Float)  # ODTQRC: Cost (also QTC: agreed cost)
-    # ODTQRC task definition (docs/12_ARCHITECTURE.md): Objective, Deliverable, Time (due_at), Quality, Risk,
+    # ODTQRC task definition: Objective, Deliverable, Time (due_at), Quality, Risk,
     # Cost (budget) — the fields a clarity agent (app/clarity.py) reviews for vagueness before work starts.
     objective: Mapped[str | None] = mapped_column(Text)
     deliverable: Mapped[str | None] = mapped_column(Text)

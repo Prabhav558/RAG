@@ -1,8 +1,7 @@
 """Cycle 3 endpoints: scorecard review, subjects, submissions (quality gate), diagnosis, behaviour analytics.
 
 Workflow actions require a logged-in session (Authorization: Bearer <token>); the actor is the authenticated
-user's display name, never a client-supplied value. See docs/10_CYCLE3_BEHAVIOUR_SPEC.md and
-docs/14_PHASE2_SECURITY_SPEC.md.
+user's display name, never a client-supplied value.
 """
 
 from fastapi import APIRouter, Depends

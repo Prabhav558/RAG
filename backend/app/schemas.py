@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Aggregation = Literal["weighted_mean", "minimum"]
 
-# Size limits (Cycle 2: unbounded text was accepted, see docs/cycle2/corruption_report_baseline.md)
+# Size limits (Cycle 2: unbounded text was accepted)
 NAME_MAX = 200
 TEXT_MAX = 20_000  # purpose, scope, guidelines, rationale
 INPUT_MAX = 400_000  # pasted input to evaluate (same limit as extracted documents)

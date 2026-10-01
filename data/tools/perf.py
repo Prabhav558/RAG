@@ -4,7 +4,7 @@ Loads volume through the normal services, then times the endpoints people actual
 
     python data/tools/perf.py --multiplier 20                 # SQLite
     SCORECARD_DB_URL=postgresql+psycopg://... python data/tools/perf.py --multiplier 20
-Targets (docs/08_CYCLE3_PLAN.md §9.6): p95 < 300 ms for rating updates and page loads at pilot volume;
+Targets: p95 < 300 ms for rating updates and page loads at pilot volume;
 throughput far above 2,400 evaluations/day (~0.03/s average).
 """
 

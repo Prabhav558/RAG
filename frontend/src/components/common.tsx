@@ -96,7 +96,7 @@ export const SUBMISSION_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-/** The authenticated user, live-updated on login/logout (Phase 2: docs/14_PHASE2_SECURITY_SPEC.md). */
+/** The authenticated user, live-updated on login/logout. */
 export function useAuth(): { user: AuthUser | null } {
   const [user, setUser] = useState(getUser());
   useEffect(() => subscribeAuth(() => setUser(getUser())), []);

@@ -17,20 +17,11 @@ A generic **Scorecard Creation & Rating System**: Google Forms / SurveyMonkey fo
 - **Learn**: RAG distribution, weakest parameters, first-time pass rate, LLM-vs-human agreement, guideline
   disputes, self-appraisal honesty, QTC misses; red diagnosis (skill, aptitude, will, allocation).
 - **Import** legacy spreadsheet scorecards and their history, with a preview and reconciliation of old totals.
+  Or let **AI draft a scorecard from any spreadsheet**, even one with vague KPIs and no guidelines: it keeps your KPIs,
+  makes them judgeable, writes the rating matrices and lists what it assumed, for you to review before it is saved.
 
 *Assessment Quality* is the pilot scorecard. It is **data** (`data/scorecards/assessment-quality.json`), alongside
 five scorecards for other subject types on three rating scales.
-
-Built with the **Data-Driven Development Framework v1.1**, Phase 1 complete:
-
-| Step | Documents |
-|---|---|
-| Plan & Initial Product Scope | [00 Master plan](docs/00_MASTER_PLAN.md) · [01 Initial Product Scope](docs/01_INITIAL_PRODUCT_SCOPE.md) |
-| Cycle 1: Data Foundation | [02 Database design](docs/02_DATABASE_DESIGN.md) · [schema.sql](docs/schema.sql) · [03 Data dictionary](docs/03_DATA_DICTIONARY.md) · [04 Scenario catalogue](docs/04_SCENARIO_CATALOGUE.md) · [05 Scoring engine](docs/05_SCORING_ENGINE_SPEC.md) · [06 Analytics](docs/06_ANALYTICS_BI.md) |
-| Cycle 2: Test & Migration | [07 Plan](docs/07_CYCLE2_PLAN.md) · [09 Report](docs/09_CYCLE2_REPORT.md) · [Migration rules](docs/cycle2/MIGRATION_RULES.md) · [Corruption report](docs/cycle2/corruption_report.md) |
-| Cycle 3: Behaviour, Specification & Testing | [08 Plan](docs/08_CYCLE3_PLAN.md) · [10 Behaviour spec](docs/10_CYCLE3_BEHAVIOUR_SPEC.md) · [11 Refined PRD](docs/11_REFINED_PRD.md) · [13 Report](docs/13_CYCLE3_REPORT.md) · [Acceptance scenarios](acceptance/) |
-| Tuning & architecture | [Tuning report](docs/tuning/TUNING_REPORT.md) · [12 Architecture](docs/12_ARCHITECTURE.md) |
-| Using it | [User guide](docs/USER_GUIDE.md) · [Pilot log](docs/PILOT_LOG.md) |
 
 ## Run it
 
@@ -55,8 +46,8 @@ Shared deployment: `docker compose up` (app + Postgres 16; migrations run on sta
 Existing Cycle 1–2 pilot databases: `alembic stamp 0001_cycle2 && alembic upgrade head`.
 
 > **Login required.** Every account is a real login (username + password, PBKDF2-hashed, bearer-token sessions).
-> The first account ever registered on a fresh database becomes an admin automatically. See
-> `docs/14_PHASE2_SECURITY_SPEC.md` for the identity, RBAC and data-governance model.
+> The first account ever registered on a fresh database becomes an admin automatically. Admins grant the Designer,
+> Reviewer, Lead and Importer roles from **Users & roles**.
 
 ## Test
 

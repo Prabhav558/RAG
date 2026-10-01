@@ -1,6 +1,6 @@
 """Cycle 3 services: scorecard review, subjects, submissions (the quality gate), roll-up, red diagnosis.
 
-Behaviour spec: docs/10_CYCLE3_BEHAVIOUR_SPEC.md. Every state change goes through workflow.transition().
+Every state change goes through workflow.transition().
 """
 
 from __future__ import annotations
@@ -387,7 +387,7 @@ def update_submission(db: Session, sub: Submission, data: SubmissionUpdate, acto
 def add_evaluation(db: Session, sub: Submission, data: SubmissionEvaluationIn, actor: str) -> Evaluation:
     """`actor` is the verified (logged-in) identity performing this call. For `human`, the recorded evaluator
     name is always the actor's own name — a client-supplied `evaluator_name` is never trusted for a person's
-    identity (Phase 2 security fix: see docs/14_PHASE2_SECURITY_SPEC.md §4). `llm` has no person to spoof, so a
+    identity (Phase 2 security fix). `llm` has no person to spoof, so a
     caller may still label which judge model/config produced it via `evaluator_name`."""
     if data.evaluator_type == "self":
         if not wf.same_person(actor, sub.owner):

@@ -8,3 +8,11 @@ frontend/dist/
 .env
 *.tsbuildinfo
 backend/perf.db
+
+# Excel lock files
+~$*
+
+# Local-only material: demo inputs, generated reports and test output
+demo_emails/
+reports/
+acceptance/ACCEPTANCE_RESULTS.md

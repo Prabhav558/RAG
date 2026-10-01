@@ -1,4 +1,4 @@
-"""Data governance (docs/14_PHASE2_SECURITY_SPEC.md §5) — retention purge for audit events and voided evaluations.
+"""Data governance — retention purge for audit events and voided evaluations.
 
 Completed evaluations, submissions and diagnoses are never touched here: they are the record a red diagnosis and
 a scorecard's history depend on. Only two things are ever purged, and only once they are old enough to no longer

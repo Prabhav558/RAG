@@ -1,4 +1,4 @@
-"""Cycle 2 · §8.1 — property-based tests: the scoring invariants in docs/05_SCORING_ENGINE_SPEC.md §7
+"""Cycle 2 · §8.1 — property-based tests: the scoring invariants of the scoring engine
 must hold for any tree, any weights and any scores, not only the hand-written examples."""
 
 import copy

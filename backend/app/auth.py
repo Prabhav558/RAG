@@ -1,4 +1,4 @@
-"""Phase 2 authentication and RBAC. Spec: docs/14_PHASE2_SECURITY_SPEC.md.
+"""Phase 2 authentication and RBAC.
 
 Password hashing and session tokens use only the standard library (no new dependency, no secret-management
 surface beyond the database itself). Every workflow actor is now a verified UserAccount.display_name, never a

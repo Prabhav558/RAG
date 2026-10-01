@@ -3,7 +3,7 @@
 Private self-appraisals are excluded from every aggregate.
 
 Tuning (framework §10): aggregates read lean column projections or SQL GROUP BYs, never full ORM graphs, so cost
-grows with the number of rows scanned rather than with objects materialised. See docs/tuning/TUNING_REPORT.md.
+grows with the number of rows scanned rather than with objects materialised.
 """
 
 from __future__ import annotations

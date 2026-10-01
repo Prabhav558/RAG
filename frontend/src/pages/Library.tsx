@@ -21,6 +21,18 @@ export default function Library() {
     api.subjectTypes().then(setTypes);
   }, []);
 
+  async function remove(c: ScorecardSummary) {
+    const kept = c.evaluation_count > 0 ? ` Its ${c.evaluation_count} past evaluation${c.evaluation_count > 1 ? "s are" : " is"} kept.` : "";
+    if (!window.confirm(`Delete the scorecard "${c.name}"? It will disappear from the library.${kept}`)) return;
+    setError(null);
+    try {
+      await api.archiveScorecard(c.id);
+      await load();
+    } catch (e) {
+      setError(e);
+    }
+  }
+
   const shown = (cards ?? []).filter((c) => !filter || c.subject_type === filter);
 
   return (
@@ -77,6 +89,8 @@ export default function Library() {
                   </Link>
                   <button className="sm" onClick={() => setCloning(c)}>Clone</button>
                   <Link className="btn sm" to={`/evaluations?scorecard=${c.id}`}>Results</Link>
+                  <span className="spacer" />
+                  <button className="sm ghost danger" onClick={() => remove(c)} aria-label={`Delete ${c.name}`}>Delete</button>
                 </div>
               </div>
             );

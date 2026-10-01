@@ -3,7 +3,7 @@
     python data/tools/migrate.py data/legacy/code-review-quality.xlsx            # preview only
     python data/tools/migrate.py data/legacy/vendor-assessment.csv data/legacy/vendor-assessment-ratings.csv --commit
     python data/tools/migrate.py --all --commit                                   # every dataset in data/legacy
-    options: --rescale 0-10-rag  --subject-type team  --no-placeholders  --draft  --report-dir docs/cycle2/migration
+    options: --rescale 0-10-rag  --subject-type team  --no-placeholders  --draft  --report-dir reports/migration
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def main(argv=None) -> int:
     ap.add_argument("--subject-type")
     ap.add_argument("--no-placeholders", action="store_true")
     ap.add_argument("--draft", action="store_true", help="do not publish the migrated scorecard")
-    ap.add_argument("--report-dir", type=Path, default=ROOT / "docs" / "cycle2" / "migration")
+    ap.add_argument("--report-dir", type=Path, default=ROOT / "reports" / "migration")
     args = ap.parse_args(argv)
 
     init_db()

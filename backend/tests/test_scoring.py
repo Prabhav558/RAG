@@ -1,4 +1,4 @@
-"""Scoring-engine scenarios (docs/04_SCENARIO_CATALOGUE.md). Pure functions, no database."""
+"""Scoring-engine scenarios. Pure functions, no database."""
 
 import pytest
 

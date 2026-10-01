@@ -103,8 +103,12 @@ def update_scorecard_meta(scorecard_id: int, body: ScorecardMetaUpdate, _: objec
 
 @router.delete("/scorecards/{scorecard_id}", status_code=204)
 def archive_scorecard(scorecard_id: int, _: object = Depends(require_designer), db: Session = Depends(get_session)):
+    """Delete = archive: the scorecard leaves the library but its versions, evaluations and submissions are kept, so
+    past results stay reproducible. Its code is freed so a new scorecard can reuse the name."""
     sc = _scorecard(db, scorecard_id)
-    sc.archived_at = svc.now()
+    if sc.archived_at is None:
+        sc.archived_at = svc.now()
+        sc.code = f"{sc.code[:40]}--archived-{sc.id}"
     db.commit()
 
 

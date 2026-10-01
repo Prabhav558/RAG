@@ -1,4 +1,4 @@
-"""Cycle 3 behaviour (docs/10_CYCLE3_BEHAVIOUR_SPEC.md): state machines, guards, roll-up, diagnosis."""
+"""Cycle 3 behaviour: state machines, guards, roll-up, diagnosis."""
 
 from datetime import datetime, timedelta, timezone
 

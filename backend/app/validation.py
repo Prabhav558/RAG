@@ -1,7 +1,6 @@
 """Scorecard definition validation. Pure functions returning coded issues.
 
-Errors block publishing; warnings are advisory. Codes are referenced by the scenario catalogue
-(docs/04_SCENARIO_CATALOGUE.md) and the tests, so keep them stable.
+Errors block publishing; warnings are advisory. Codes are referenced by the tests, so keep them stable.
 """
 
 from __future__ import annotations

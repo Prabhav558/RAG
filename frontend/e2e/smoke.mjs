@@ -27,7 +27,7 @@ const PASSWORD = "Smoke-Password-1!";
 const registered = new Set();
 
 // Phase 2: every page needs a login. The first account ever registered on a fresh database becomes admin
-// automatically (see docs/14_PHASE2_SECURITY_SPEC.md), so `data/tools/ingest.py --reset`'s seed data (loaded
+// automatically, so `data/tools/ingest.py --reset`'s seed data (loaded
 // through the service layer, with no HTTP users) means this suite's first registration is that admin.
 async function actAs(username, displayName) {
   if (await page.locator("text=Log out").count()) await page.click("text=Log out");

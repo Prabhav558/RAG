@@ -1,7 +1,7 @@
 """Build the legacy-spreadsheet datasets used to exercise the Cycle 2 migration (data/legacy/).
 
 Each file mimics how teams actually keep scorecards in Excel/CSV today, with deliberately injected problems.
-The expected outcome of every injected problem is listed in docs/cycle2/MIGRATION_RULES.md.
+The expected outcome of every injected problem is tested in backend/tests/test_migration.py.
 
     python data/tools/make_legacy.py
 """
@@ -179,6 +179,104 @@ def seven_point():
     wb.save(OUT / "meeting-effectiveness-7pt.xlsx")
 
 
+# ---------------------------------------------------------------- L6: a clean, well-formed sheet (the rule-based importer reads it as-is)
+def client_email():
+    """Client Email Quality in the layout the rule-based importer recognises: metadata lines, dotted numbering,
+    weights, one guideline column per score range, a critical flag, and a ratings sheet whose legacy totals the
+    new engine reproduces (the totals use the sheet's own weights, nested like the hierarchy)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Scorecard"
+    for row in [["Scorecard: Client Email Quality"],
+                ["Purpose", "Make sure every client email is clear, accurate and professional before it is sent"],
+                ["Scope", "Subject line, body, tone and attachments of external client emails. Internal threads are out."],
+                ["Objective", "An email is ready to send at 7 or above overall, with no spelling or fact errors"],
+                ["Scale", "0-10"], ["Target", 7], ["Subject", "Communication"], ["Owner", "Sales operations"], []]:
+        ws.append(row)
+    heads = ["No", "KPI", "Weight %", "Description", "Critical", "9-10", "8", "7", "6", "5", "4", "0-3"]
+    ws.append(heads)
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+    leaves = [
+        ("1.1", "Purpose stated", 50, "Reader knows why the email was sent", "",
+         "Purpose in the subject line and the first sentence", "Purpose in the first 2 sentences, subject names the topic",
+         "Purpose in the first 2 sentences, subject is generic", "Purpose only later in the first paragraph",
+         "Purpose must be inferred", "Purpose unclear to most readers", "No purpose"),
+        ("1.2", "Ask is explicit", 50, "Reader knows what is wanted and by when", "",
+         "One clear ask with a specific date or time", "Clear ask with a specific date or a date range",
+         "Clear ask, deadline only vague (soon)", "Clear ask but no deadline, or 'asap'", "Ask buried among other points",
+         "Ask unclear or contradictory", "No ask at all"),
+        ("2.1", "Professional tone", 50, "Polite, confident, right for a client", "",
+         "Greeting and sign-off, no informal phrases", "At most 1 informal phrase", "2 informal phrases, nothing negative",
+         "3 or more informal phrases or no greeting", "Slang or curt phrasing in places",
+         "Dismissive, sarcastic or defensive lines", "Rude or inflammatory"),
+        ("2.2", "No errors", 50, "Spelling, grammar and facts are correct", "Y",
+         "0 spelling or grammar errors, 0 factual errors", "1 minor error", "2 minor errors", "3-4 errors, meaning intact",
+         "5-6 errors or one minor factual slip", "7 or more errors or a wrong name, date or figure",
+         "Pervasive errors or a serious factual mistake"),
+        ("3.1", "Owners and dates stated", 50, "Each action has an owner and a date", "",
+         "100% of actions have an owner and a date", "At least 85% have both", "70-84% have both", "50-69% have both",
+         "Under 50% have an owner", "Actions listed, none assigned", "No actions identifiable"),
+        ("3.2", "Next steps explicit", 50, "Reader knows what happens next", "",
+         "Next step stated for every open point", "One open point without a next step", "Next steps stated only generally",
+         "2 or more open points without a next step", "Next steps must be inferred",
+         "Decisions and open points mixed together", "Nothing actionable"),
+    ]
+    groups = [("1", "Clarity", 40), ("2", "Tone", 30), ("3", "Actionability", 30)]
+    for g, name, w in groups:
+        ws.append([g, name, w, "", ""])
+        for leaf in [x for x in leaves if x[0].startswith(g + ".")]:
+            ws.append(list(leaf))
+    ws.append([])
+    ws.append(["", "Total", 100])
+    gw = {g: w for g, _, w in groups}
+    leaf_w = {name: gw[code.split(".")[0]] / sum(gw.values()) * lw / sum(
+        x[2] for x in leaves if x[0].split(".")[0] == code.split(".")[0]) for code, name, lw, *_ in leaves}
+    rs = wb.create_sheet("Ratings")
+    names = list(leaf_w)
+    rs.append(["Subject", "Reviewer", "Date", *names, "Total", "Comments"])
+    samples = [
+        ("Phase 2 budget approval", [10, 10, 10, 10, 9, 9], "Model email"),
+        ("Project status update", [8, 7, 9, 10, 7, 8], ""),
+        ("Delivery date query", [7, 7, 8, 9, 6, 7], ""),
+        ("Invoice reminder", [6, 6, 8, 9, 5, 6], "Ask has no date"),
+        ("Holiday cover notice", [8, 6, 9, 10, 6, 7], ""),
+        ("Complaint reply", [5, 6, 5, 7, 5, 6], "Too casual for a complaint"),
+        ("Rushed follow-up", [4, 4, 4, 4, 3, 4], "Typos and no clear ask"),
+        ("Angry escalation", [3, 5, 2, 3, 2, 3], "Should not have been sent"),
+    ]
+    d0 = date(2026, 8, 3)
+    for i, (subject, sc, note) in enumerate(samples):
+        total = round(sum(v * leaf_w[n] for v, n in zip(sc, names)), 2)
+        rs.append([subject, ["Priya", "Arjun"][i % 2], d0 + timedelta(days=4 * i), *sc, total, note])
+    wb.save(OUT / "client-email-quality.xlsx")
+
+
+# ---------------------------------------------------------------- L7: vague KPIs, no guidelines (for the AI-assisted import)
+def vendor_review_vague():
+    """The kind of sheet teams really keep: five vague KPI names, weights as words, one-line hints instead of
+    guidelines, an 'Overall' row and a Total. The rule-based importer would need placeholders for every
+    guideline; the AI-assisted import is meant to turn this into a real scorecard."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Vendor review"
+    for row in [["Vendor review sheet"], ["Fill in after each quarterly review. Rate 1-5."], []]:
+        ws.append(row)
+    ws.append(["What", "Importance", "Notes"])
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+    for row in [("Quality", "high", "are they good?"), ("Communication", "medium", "do they reply"),
+                ("Price", "high", "fair?"), ("Reliability", "high", "on time and so on"),
+                ("Support", "low", "after sale help"), ("Overall impression", "", "gut feel"), ("Total", "", "")]:
+        ws.append(list(row))
+    rs = wb.create_sheet("Scores")
+    rs.append(["Vendor", "Quality", "Communication", "Price", "Reliability", "Support", "Overall impression", "Comments"])
+    r = random.Random(11)
+    for name in ["Northwind Supplies", "Contoso Logistics", "Fabrikam Parts", "Tailspin Packaging", "Litware Services"]:
+        rs.append([name, *[r.randint(2, 5) for _ in range(6)], r.choice(["ok", "", "slow in March", "great team"])])
+    wb.save(OUT / "vendor-review-vague.xlsx")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     code_review()
@@ -186,6 +284,8 @@ def main():
     vendor_csv()
     broken()
     seven_point()
+    client_email()
+    vendor_review_vague()
     for p in sorted(OUT.iterdir()):
         print(p.relative_to(OUT.parent.parent), p.stat().st_size, "bytes")
 

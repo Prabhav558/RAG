@@ -1,4 +1,4 @@
-"""Clarity agent contract tests (docs/12_ARCHITECTURE.md "ODTQRC task definition") — no network, using a fake
+"""Clarity agent contract tests (ODTQRC task definition) — no network, using a fake
 agent through FastAPI's dependency_overrides, exactly like the LLM judge tests in test_api.py.
 """
 

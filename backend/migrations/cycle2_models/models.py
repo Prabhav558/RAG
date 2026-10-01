@@ -1,7 +1,6 @@
 """Relational model for the generic Scorecard Creation & Rating System.
 
-Source of truth for the schema. `python -m app.dump_schema` exports the DDL to docs/schema.sql.
-Field-level rules are documented in docs/03_DATA_DICTIONARY.md.
+Source of truth for the schema. `python -m app.dump_schema` prints the DDL.
 """
 
 from datetime import datetime, timezone

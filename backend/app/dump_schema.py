@@ -1,4 +1,4 @@
-"""Print the DDL for the current models: python -m app.dump_schema > ../docs/schema.sql"""
+"""Print the DDL for the current models: python -m app.dump_schema > schema.sql"""
 
 from sqlalchemy import create_mock_engine
 

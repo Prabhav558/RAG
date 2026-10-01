@@ -1,6 +1,6 @@
 """Pure, deterministic scoring engine. No database access.
 
-Spec: docs/05_SCORING_ENGINE_SPEC.md. Every rule here has a scenario and a test.
+Every rule here has a scenario and a test.
 """
 
 from __future__ import annotations

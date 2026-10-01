@@ -435,3 +435,17 @@ def test_judge_unconfigured_returns_503(client, monkeypatch):
     ev = new_eval(client, version_id(card), input_text="x")
     r = client.post(f"/api/evaluations/{ev['id']}/llm-judge")
     assert r.status_code in (502, 503) and r.json()["code"] == "J001"
+
+
+def test_delete_scorecard_hides_it_keeps_its_history_and_frees_the_code(client):
+    made = client.post("/api/scorecards?publish=true", json=definition("to-delete"))
+    assert made.status_code == 201, made.text
+    sc = made.json()
+    version_id = sc["versions"][-1]["id"]
+    assert client.delete(f"/api/scorecards/{sc['id']}").status_code == 204
+    assert sc["id"] not in [c["id"] for c in client.get("/api/scorecards").json()]
+    assert client.get(f"/api/versions/{version_id}").status_code == 200  # the version (and its evaluations) are kept
+    assert client.delete(f"/api/scorecards/{sc['id']}").status_code == 204  # deleting twice is harmless
+    again = client.post("/api/scorecards?publish=false", json=definition("to-delete"))
+    assert again.status_code == 201, again.text  # the same code can be used again
+    assert client.delete("/api/scorecards/99999").status_code == 404

@@ -339,7 +339,7 @@ export interface SubjectDetail extends SubjectNode {
   submissions: SubmissionRow[];
 }
 
-// ---- ODTQRC clarity agent (docs/12_ARCHITECTURE.md) ----
+// ---- ODTQRC clarity agent ----
 export interface ClarityIssue {
   field: "objective" | "deliverable" | "time" | "quality" | "risk" | "cost";
   problem: string;
@@ -375,6 +375,17 @@ export interface AssistResult {
   model: string;
   reply: string;
   parameters: ParamDef[];
+  issues: Issue[];
+}
+
+// ---- AI-assisted spreadsheet import (backend/app/ai_import.py) ----
+export interface AiDraftResult {
+  model: string;
+  summary: string;
+  assumptions: string[];
+  truncated: boolean;
+  sheets: { name: string; rows: number }[];
+  definition: ScorecardDefinition;
   issues: Issue[];
 }
 
@@ -466,7 +477,7 @@ export class ApiError extends Error {
   }
 }
 
-// ---- authentication (Phase 2: docs/14_PHASE2_SECURITY_SPEC.md) ----
+// ---- authentication ----
 // Replaces the old free-text "Acting as" / X-Actor header with a real login: a bearer token, stored here, sent
 // on every request, verified server-side against a session record.
 
@@ -683,6 +694,13 @@ export const api = {
     files.forEach((x) => f.append("files", x));
     Object.entries(opts).forEach(([k, v]) => v !== "" && f.append(k, String(v)));
     return request<MigrationReport>("POST", `/api/migrations/${mode}`, f, true);
+  },
+
+  aiDraft: (files: File[], opts: { rating_scale: string; subject_type: string; max_depth: number; hint: string }) => {
+    const f = new FormData();
+    files.forEach((x) => f.append("files", x));
+    Object.entries(opts).forEach(([k, v]) => v !== "" && f.append(k, String(v)));
+    return request<AiDraftResult>("POST", "/api/migrations/ai-draft", f, true);
   },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

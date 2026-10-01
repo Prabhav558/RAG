@@ -9,7 +9,7 @@ Outcomes
   ACCEPTED    the defect got in (a hole in validation)
   CRASH       HTTP 5xx / unhandled exception (the worst outcome)
 
-    python data/tools/corrupt.py                      # prints summary, writes docs/cycle2/corruption_report.md
+    python data/tools/corrupt.py                      # prints summary, writes reports/corruption_report.md
 """
 
 from __future__ import annotations
@@ -483,7 +483,7 @@ def main() -> int:
     for r in rows:
         if r["outcome"] != "PASS":
             print(f"{r['outcome']:<10} {r['id']} {r['description']} — expected {r['expected']} got {r['got']} ({r['status']})")
-    out = ROOT / "docs" / "cycle2" / "corruption_report.md"
+    out = ROOT / "reports" / "corruption_report.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report(rows))
     bad = sum(r["outcome"] != "PASS" for r in rows)

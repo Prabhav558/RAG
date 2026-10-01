@@ -1,4 +1,4 @@
-"""Clarity agent (docs/12_ARCHITECTURE.md "ODTQRC task definition"): reviews a subject's task definition —
+"""Clarity agent (ODTQRC task definition): reviews a subject's task definition —
 Objective, Deliverable, Time, Quality, Risk, Cost — for the kind of vagueness that only surfaces later, as a
 failed submission or a dispute about what was actually asked for.
 

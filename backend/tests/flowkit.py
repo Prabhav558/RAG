@@ -1,6 +1,6 @@
 """Helpers to drive the Cycle 3 workflows through the API (shared by workflow and acceptance tests).
 
-Phase 2 made every workflow action require a real login (docs/14_PHASE2_SECURITY_SPEC.md). `H(actor)` keeps the
+Phase 2 made every workflow action require a real login. `H(actor)` keeps the
 old call shape used throughout these tests: it transparently registers/logs in a user for that display name (once
 per test, cached) and returns a real `Authorization: Bearer <token>` header.
 

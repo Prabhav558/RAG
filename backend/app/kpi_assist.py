@@ -27,6 +27,7 @@ DEFAULT_MODEL = os.environ.get("SCORECARD_ASSIST_MODEL", "openai/gpt-oss-120b")
 MAX_CONTEXT_CHARS = 60_000
 MAX_PARAMETERS = 60
 DATA_TYPES = ("number", "percent", "count", "boolean")
+JSON_ATTEMPTS = 3  # tries when the model returns JSON that does not validate
 
 
 @dataclass
@@ -87,10 +88,7 @@ def _fmt(rows: list[tuple[int, int]]) -> str:
 # ---------------------------------------------------------------- prompt
 
 
-SYSTEM_PROMPT = """You help a scorecard designer build a quality scorecard KPI hierarchy and its rating matrix, \
-following the Quality Scorecard Framework.
-
-Design rules:
+DESIGN_RULES = """Design rules:
 - Use the KPIs the user names, exactly. If they give no KPIs, propose 4 to 6 that together describe quality for \
 this kind of work. Each KPI must be observable in the work being scored; drop anything a judge cannot see in the \
 output.
@@ -118,7 +116,12 @@ A metric has a short code, a data_type (number, percent, count or boolean), and 
 (min_value inclusive, max_value exclusive, null for unbounded) to scores on the scale, covering every value without \
 overlap. Most leaves need no metric.
 - Tailor everything to the purpose, scope and objective you are given. Do not repeat KPIs that already exist.
+"""
 
+SYSTEM_PROMPT = """You help a scorecard designer build a quality scorecard KPI hierarchy and its rating matrix, \
+following the Quality Scorecard Framework.
+
+""" + DESIGN_RULES + """
 If the user is refining an earlier proposal, return the full updated hierarchy, not only the changes. If the \
 request is too unclear to draft anything useful, return no parameters and ask one short question in the reply.
 
@@ -302,48 +305,62 @@ def parse_result(model: str, data: dict, ctx: AssistContext) -> AssistResult:
 # ---------------------------------------------------------------- Groq implementation
 
 
+def groq_json(model: str, chat: list[dict], schema_name: str, schema: dict, label: str,
+              max_tokens: int = 16000) -> tuple[str, dict]:
+    """One structured-output call to Groq; returns (model used, parsed JSON). Every failure becomes an AssistError
+    with a message fit to show the user. Shared by AI Assist and the AI-assisted spreadsheet import."""
+    import groq
+
+    client = groq.Groq(timeout=180)
+    response = None
+    for attempt in range(1, JSON_ATTEMPTS + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_completion_tokens=max_tokens,
+                response_format={"type": "json_schema", "json_schema": {"name": schema_name, "schema": schema}},
+                messages=chat,
+            )
+            break
+        except groq.AuthenticationError as e:
+            raise AssistError(f"{label} is not configured: set GROQ_API_KEY", 503) from e
+        except groq.RateLimitError as e:
+            raise AssistError(f"{label} is rate limited; try again shortly", 503) from e
+        except groq.APIConnectionError as e:
+            raise AssistError(f"Could not reach {label}") from e
+        except groq.APIStatusError as e:
+            body = e.body if isinstance(e.body, dict) else {}
+            code = (body.get("error") or {}).get("code") if isinstance(body.get("error"), dict) else None
+            if e.status_code == 400 and code == "json_validate_failed" and attempt < JSON_ATTEMPTS:
+                continue  # the model slipped on a long answer (a stray character); a fresh attempt almost always works
+            raise AssistError(f"{label} request failed ({e.status_code})") from e
+        except groq.GroqError as e:  # e.g. no credentials configured at all (raised on client construction)
+            raise AssistError(f"{label} is not configured: {e}", 503) from e
+
+    choice = response.choices[0]
+    if choice.finish_reason == "length":
+        raise AssistError(f"{label} ran out of output space; try a smaller sheet, fewer KPIs or a shallower hierarchy")
+    text = choice.message.content
+    if not text:
+        raise AssistError(f"{label} returned no result")
+    try:
+        return response.model or model, json.loads(text)
+    except json.JSONDecodeError as e:
+        raise AssistError(f"{label} returned malformed output") from e
+
+
 class GroqKpiAssistant:
     def __init__(self, model: str = DEFAULT_MODEL):
         self.model = model
 
     def propose(self, messages: list[dict], ctx: AssistContext) -> AssistResult:
-        import groq
-
         prompt = build_prompt(ctx)
         if len(prompt) + sum(len(m["content"]) for m in messages) > MAX_CONTEXT_CHARS:
             raise AssistError("The conversation is too long; start a new one", 422)
         chat = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
         chat += [{"role": m["role"], "content": m["content"]} for m in messages]
-        try:
-            client = groq.Groq()
-            response = client.chat.completions.create(
-                model=self.model,
-                max_completion_tokens=16000,
-                response_format={"type": "json_schema", "json_schema": {"name": "kpi_proposal", "schema": output_schema()}},
-                messages=chat,
-            )
-        except groq.AuthenticationError as e:
-            raise AssistError("AI Assist is not configured: set GROQ_API_KEY", 503) from e
-        except groq.RateLimitError as e:
-            raise AssistError("AI Assist is rate limited; try again shortly", 503) from e
-        except groq.APIConnectionError as e:
-            raise AssistError("Could not reach AI Assist") from e
-        except groq.APIStatusError as e:
-            raise AssistError(f"AI Assist request failed ({e.status_code})") from e
-        except groq.GroqError as e:  # e.g. no credentials configured at all (raised on client construction)
-            raise AssistError(f"AI Assist is not configured: {e}", 503) from e
-
-        choice = response.choices[0]
-        if choice.finish_reason == "length":
-            raise AssistError("AI Assist ran out of output space; ask for fewer KPIs or a shallower hierarchy")
-        text = choice.message.content
-        if not text:
-            raise AssistError("AI Assist returned no result")
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as e:
-            raise AssistError("AI Assist returned malformed output") from e
-        return parse_result(response.model or self.model, data, ctx)
+        model, data = groq_json(self.model, chat, "kpi_proposal", output_schema(), "AI Assist")
+        return parse_result(model, data, ctx)
 
 
 def get_kpi_assistant() -> KpiAssistant:

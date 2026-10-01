@@ -20,6 +20,7 @@ services:
       SCORECARD_JUDGE_MODEL: ${SCORECARD_JUDGE_MODEL:-openai/gpt-oss-120b}
       SCORECARD_CLARITY_MODEL: ${SCORECARD_CLARITY_MODEL:-openai/gpt-oss-120b}
       SCORECARD_ASSIST_MODEL: ${SCORECARD_ASSIST_MODEL:-openai/gpt-oss-120b}
+      SCORECARD_IMPORT_MODEL: ${SCORECARD_IMPORT_MODEL:-openai/gpt-oss-120b}
     ports: ["8000:8000"]
 volumes:
   pgdata:
